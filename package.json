@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "AgileCampus 独立部署控制台：面板 + 多项目中枢，可打包成单个 exe",
+  "license": "MIT",
   "type": "module",
-  "comment": "这里的依赖**只在打包时**使用（postject 负责把 SEA blob 注入 node.exe）。面板本身零 npm 依赖，必须在 npm ci 之前就能跑起来——所以运行时永远不会读取本文件。",
+  "comment": "这里的依赖**只在打包时**使用（postject 负责把 SEA blob 注入 node.exe）。面板本身零 npm 依赖，必须在 npm ci 之前就能跑起来——所以运行时永[...]",
   "scripts": {
     "build": "node build/build-sea.mjs",
     "selftest": "node main.mjs --selftest",
