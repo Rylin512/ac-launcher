@@ -1,0 +1,2149 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgileCampus 控制台</title>
+<style>
+/* ---------- 设计令牌 ---------- */
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --plane:        #f9f9f7;
+  --surface:      #fcfcfb;
+  --ink:          #0b0b0b;
+  --ink-2:        #52514e;
+  --ink-muted:    #898781;
+  --hairline:     rgba(11,11,11,0.10);
+  --grid:         #e1e0d9;
+  --accent:       #2a78d6;
+  --accent-soft:  #cde2fb;
+  --good:         #0ca30c;
+  --warning:      #fab219;
+  --serious:      #ec835a;
+  --critical:     #d03b3b;
+  --shadow:       0 1px 2px rgba(11,11,11,0.05);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane:        #0d0d0d;
+  --surface:      #1a1a19;
+  --ink:          #ffffff;
+  --ink-2:        #c3c2b7;
+  --ink-muted:    #898781;
+  --hairline:     rgba(255,255,255,0.10);
+  --grid:         #2c2c2a;
+  --accent:       #3987e5;
+  --accent-soft:  #184f95;
+  --shadow:       0 1px 2px rgba(0,0,0,0.4);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--plane);
+  color: var(--ink);
+  font: 14px/1.6 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 20px 20px 48px; }
+
+/* ---------- 顶栏 ---------- */
+header.top {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 16px 0 18px;
+}
+.brand { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+.brand small { font-weight: 400; color: var(--ink-muted); margin-left: 8px; font-size: 12px; }
+.spacer { flex: 1; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 11px; border-radius: 999px;
+  border: 1px solid var(--hairline); background: var(--surface);
+  font-size: 13px; white-space: nowrap;
+}
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-muted); flex: none; }
+.s-good    .dot { background: var(--good); }
+.s-warning .dot { background: var(--warning); }
+.s-serious .dot { background: var(--serious); }
+.s-critical .dot { background: var(--critical); }
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: 10px; padding: 16px 18px; box-shadow: var(--shadow);
+}
+.card > h2 {
+  margin: 0 0 14px; font-size: 13px; font-weight: 650;
+  color: var(--ink-2); text-transform: none; letter-spacing: 0.01em;
+  display: flex; align-items: center; gap: 8px;
+}
+.grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 14px; }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 3px 0; }
+.row .k { color: var(--ink-2); font-size: 13px; flex: none; }
+.row .v { text-align: right; word-break: break-all; }
+.mono { font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-muted); }
+
+/* ---------- 占用率条（单一蓝色顺序色阶） ---------- */
+.meter { margin: 9px 0 2px; }
+.meter .lbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
+.meter .track { height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; }
+.meter .fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width .4s ease; }
+.meter.is-high .fill { background: var(--warning); }
+.meter.is-critical .fill { background: var(--critical); }
+
+/* ---------- 按钮 ---------- */
+.actions { display: flex; flex-wrap: wrap; gap: 9px; }
+button {
+  font: inherit; font-size: 13px; padding: 8px 15px; cursor: pointer;
+  border-radius: 8px; border: 1px solid var(--hairline);
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow);
+  transition: border-color .15s, background .15s;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+button.danger { color: var(--critical); border-color: var(--critical); }
+button.danger:hover:not(:disabled) { background: var(--critical); color: #fff; }
+button.sm { padding: 5px 11px; font-size: 12px; }
+
+/* ---------- 提示条 ---------- */
+.notes { margin-top: 14px; display: grid; gap: 8px; }
+.note {
+  display: flex; gap: 9px; align-items: flex-start; font-size: 13px;
+  padding: 9px 12px; border-radius: 8px; border: 1px solid var(--hairline);
+  background: var(--surface);
+}
+.note .ic { flex: none; font-weight: 700; }
+.n-warn     { border-left: 3px solid var(--warning); }
+.n-warn .ic { color: var(--warning); }
+/* 失败提示不能只是「左边多一道红线」：一屏里提示条常常不止一条，
+   颜色越接近越容易被略过。给底色和边框都加一点分量。 */
+.n-critical {
+  border-color: rgba(208,59,59,0.35);
+  border-left: 3px solid var(--critical);
+  background: rgba(208,59,59,0.07);
+}
+.n-critical .ic { color: var(--critical); }
+.n-info     { border-left: 3px solid var(--ink-muted); }
+.n-info .ic { color: var(--ink-muted); }
+.n-good     { border-left: 3px solid var(--good); }
+.n-good .ic { color: var(--good); }
+
+/* ---------- 操作进度条（任务执行时常驻在操作栏） ---------- */
+/* 比 .note 重一档：这是「现在机器正在动，别再点按钮」的提醒，
+   不是事后的解释。运行中吸顶，用户滚到日志区也还看得见百分比。 */
+.op-live {
+  margin: 14px 0 0; padding: 11px 13px;
+  border: 2px solid var(--accent); border-radius: 10px;
+  background: rgba(42,120,214,0.08);
+  box-shadow: 0 3px 14px rgba(42,120,214,0.12);
+}
+.op-live.is-running { position: sticky; top: 8px; z-index: 20; }
+.op-live.is-good {
+  position: static; border-color: var(--good);
+  background: rgba(12,163,12,0.07); box-shadow: none;
+}
+/* 失败也吸顶：出错的那一刻用户很可能正滚在日志区，这条跟着走才不会错过。
+   旁边有「收起」，不想看了可以关掉，不会一直占着。 */
+.op-live.is-bad {
+  position: sticky; top: 8px; z-index: 20;
+  border-color: var(--critical);
+  background: rgba(208,59,59,0.09);
+  box-shadow: 0 3px 14px rgba(208,59,59,0.18);
+}
+.op-live.is-muted {
+  position: static; border-color: var(--hairline);
+  background: var(--plane); box-shadow: none;
+}
+.op-live-row { display: flex; align-items: center; gap: 9px; font-size: 13.5px; }
+.op-live-row b { font-weight: 650; }
+.op-live-ic { flex: none; width: 18px; text-align: center; font-weight: 700; }
+.op-live.is-running .op-live-ic { color: var(--accent); animation: op-pulse 1.1s ease-in-out infinite; }
+.op-live.is-good .op-live-ic { color: var(--good); }
+.op-live.is-bad .op-live-ic { color: var(--critical); }
+.op-live.is-muted .op-live-ic { color: var(--ink-muted); }
+.op-live-pct { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.op-live.is-good .op-live-pct { color: var(--good); }
+.op-live.is-bad .op-live-pct { color: var(--critical); }
+@keyframes op-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+.op-bar {
+  height: 9px; margin-top: 9px; border-radius: 5px;
+  background: var(--grid); overflow: hidden;
+}
+.op-bar-fill {
+  height: 100%; width: 0; border-radius: 5px;
+  background: var(--accent); transition: width .35s ease;
+}
+/* 步骤之间的空档（npm ci 这类一步跑很久）不能让条看着像死了：
+   斜纹一直在走，说明任务还活着，百分比只是还没跳到下一格。 */
+.op-live.is-running .op-bar-fill {
+  background-image: linear-gradient(45deg,
+    rgba(255,255,255,.28) 25%, transparent 25%, transparent 50%,
+    rgba(255,255,255,.28) 50%, rgba(255,255,255,.28) 75%, transparent 75%);
+  background-size: 18px 18px;
+  animation: op-stripe 1s linear infinite;
+}
+@keyframes op-stripe { from { background-position: 0 0; } to { background-position: 18px 0; } }
+.op-live.is-good .op-bar-fill { background: var(--good); }
+.op-live.is-bad .op-bar-fill { background: var(--critical); }
+.op-live-meta { margin-top: 7px; font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
+.op-live-err {
+  margin-top: 9px; padding: 9px 11px; border-radius: 7px;
+  border: 1px solid var(--critical); background: var(--surface);
+  color: var(--critical); font-size: 13px; font-weight: 600;
+  line-height: 1.7; overflow-wrap: anywhere;
+}
+.op-live-act { margin-top: 9px; display: flex; gap: 8px; }
+
+/* ---------- 数据库检修 ---------- */
+.doc-row {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 9px 12px; border-radius: 8px; border: 1px solid var(--hairline);
+  background: var(--surface); font-size: 13px;
+}
+.doc-row + .doc-row { margin-top: 7px; }
+.doc-row .st {
+  flex: none; width: 16px; text-align: center; font-weight: 700; line-height: 1.5;
+}
+.doc-row.lv-ok   .st { color: var(--good); }
+.doc-row.lv-warn .st { color: var(--warning); }
+.doc-row.lv-fail .st { color: var(--critical); }
+.doc-row.lv-skip .st { color: var(--ink-muted); }
+.doc-row.lv-fail { border-left: 3px solid var(--critical); }
+.doc-row.lv-warn { border-left: 3px solid var(--warning); }
+.doc-body { flex: 1; min-width: 0; }
+.doc-title { font-weight: 600; }
+.doc-detail { color: var(--ink-2); margin-top: 3px; line-height: 1.6; overflow-wrap: anywhere; }
+.doc-act { flex: none; }
+.doc-row.is-destructive { border-color: var(--critical); }
+
+/* ---------- 重置数据库：二次确认 ---------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(11,11,11,0.45);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 16px; overflow: auto;
+}
+.modal {
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: 12px; box-shadow: 0 12px 44px rgba(0,0,0,0.28);
+  width: 100%; max-width: 640px; padding: 20px 22px;
+}
+.modal > h2 { margin: 0 0 6px; font-size: 15px; font-weight: 650; color: var(--critical); display: flex; align-items: center; gap: 8px; }
+.modal .sub { font-size: 13px; color: var(--ink-2); line-height: 1.75; }
+.rm-table { border: 1px solid var(--hairline); border-radius: 8px; overflow: hidden; margin: 14px 0; }
+.rm-table table { font-size: 13px; }
+.rm-table th { background: var(--plane); }
+.rm-table tr:last-child td { border-bottom: none; }
+.rm-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rm-table tr.total td { font-weight: 650; border-top: 2px solid var(--grid); }
+.keep { font-size: 13px; color: var(--ink-2); line-height: 1.8; }
+.keep b { color: var(--ink); }
+.modal .field { margin-top: 16px; }
+.modal .field > .k { display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.modal input[type=text].phrase {
+  width: 100%; font: inherit; font-size: 14px; padding: 9px 12px;
+  border-radius: 8px; border: 1px solid var(--hairline);
+  background: var(--plane); color: var(--ink);
+}
+.modal input[type=text].phrase.bad { border-color: var(--critical); }
+.modal .ak { margin-top: 12px; }
+.modal .foot { display: flex; gap: 9px; justify-content: flex-end; margin-top: 18px; }
+
+/* ---------- 飞书配置教程 ---------- */
+/* 重置确认框的标题是红的（危险操作），教程不是危险操作，不能沿用那身衣服 */
+.modal.tut { max-width: 700px; }
+.modal.tut > h2 { color: var(--ink); }
+.modal.tut .steps-tut {
+  margin: 14px 0 0; padding-left: 22px;
+  font-size: 13px; line-height: 1.85; color: var(--ink-2);
+}
+.modal.tut .steps-tut li + li { margin-top: 9px; }
+.modal.tut .steps-tut b { color: var(--ink); }
+.modal.tut code {
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Consolas, "Cascadia Mono", monospace;
+  background: var(--plane); border: 1px solid var(--hairline);
+  border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere;
+}
+.modal.tut .trouble {
+  margin-top: 16px; padding: 10px 12px; border-radius: 8px;
+  background: var(--plane); font-size: 12.5px; line-height: 1.8; color: var(--ink-2);
+}
+.modal.tut .trouble b { color: var(--ink); }
+.modal.tut .foot { justify-content: space-between; }
+
+/* 链接做成按钮外观：<a> 没有 button 的默认样式，得自己补齐。
+   用 <a> 而不是 onclick 里 window.open，是为了保留中键/右键新标签页。 */
+a.alinkbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 13px; font-weight: 500;
+  padding: 8px 15px; border-radius: 8px; border: 1px solid var(--hairline);
+  background: var(--surface); color: var(--ink);
+  text-decoration: none; cursor: pointer; box-shadow: var(--shadow);
+  transition: border-color .15s, color .15s;
+}
+a.alinkbtn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- 顶部浮窗（操作反馈） ---------- */
+.toasts {
+  position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+  z-index: 60; width: min(560px, calc(100vw - 28px));
+  padding: 14px 0 0; display: grid; gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 11px 13px; border-radius: 10px;
+  border: 1px solid var(--hairline); border-left-width: 3px;
+  background: var(--surface); box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+  font-size: 13px; line-height: 1.6;
+  animation: toast-in .18s ease-out;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+.toast.out { opacity: 0; transform: translateY(-10px); transition: opacity .2s, transform .2s; }
+/* 定宽居中：四个图标（✓ i ! ✕）字形宽度不一，不定宽的话每条浮窗的
+   正文起始位置都会差几个像素，摞在一起看着就是歪的 */
+.toast .ic { flex: none; width: 16px; text-align: center; font-weight: 700; }
+.toast .body { flex: 1; min-width: 0; }
+.toast .msg { overflow-wrap: anywhere; }
+/* 重置掉 button 的默认外观——它是个链接，不是按钮 */
+.toast .where {
+  display: inline-block; margin-top: 5px; padding: 0; border: 0;
+  background: none; box-shadow: none; height: auto;
+  font: inherit; font-size: 12px; color: var(--accent);
+  text-decoration: underline; cursor: pointer;
+}
+.toast .where:hover:not(:disabled) { border-color: transparent; filter: brightness(1.15); }
+.toast .x {
+  flex: none; padding: 0 2px; border: 0; background: none; box-shadow: none;
+  color: var(--ink-muted); font-size: 14px; line-height: 1.2; cursor: pointer;
+}
+.toast .x:hover:not(:disabled) { border-color: transparent; color: var(--ink); }
+.toast.t-good     { border-left-color: var(--good); }      .toast.t-good .ic     { color: var(--good); }
+.toast.t-info     { border-left-color: var(--ink-muted); } .toast.t-info .ic     { color: var(--ink-muted); }
+.toast.t-warn     { border-left-color: var(--warning); }   .toast.t-warn .ic     { color: var(--warning); }
+.toast.t-critical { border-left-color: var(--critical); }  .toast.t-critical .ic { color: var(--critical); }
+
+/* 浮窗里点「状态见…」时，目标区域闪一下边框，指明到底是哪一块 */
+@keyframes flash-outline {
+  0%, 100% { outline: 2px solid transparent; outline-offset: 3px; }
+  18%, 72% { outline: 2px solid var(--accent); outline-offset: 3px; }
+}
+.flash { animation: flash-outline 1.3s ease; }
+
+/* ---------- 任务面板 ---------- */
+.steps { display: flex; flex-wrap: wrap; gap: 6px 4px; margin-bottom: 12px; }
+.step {
+  font-size: 12px; padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--hairline); color: var(--ink-muted); white-space: nowrap;
+}
+.step.done    { color: var(--good);     border-color: var(--good); }
+.step.running { color: var(--ink);      border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.step.failed  { color: var(--critical); border-color: var(--critical); }
+
+pre.log {
+  margin: 0; padding: 12px 14px; border-radius: 8px;
+  background: var(--plane); border: 1px solid var(--hairline);
+  font: 12px/1.65 ui-monospace, SFMono-Regular, Consolas, "Cascadia Mono", monospace;
+  color: var(--ink-2); max-height: 340px; overflow: auto; white-space: pre-wrap; word-break: break-all;
+}
+pre.log .e { color: var(--critical); }
+
+.toolbar { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+select, input[type=text], input[type=password], input[type=number] {
+  font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--hairline); background: var(--surface); color: var(--ink);
+}
+input[type=text], input[type=password] { width: 100%; }
+label.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
+
+/* ---------- 表格 ---------- */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+th { color: var(--ink-muted); font-weight: 600; font-size: 12px; }
+td.k { font-family: ui-monospace, Consolas, monospace; white-space: nowrap; }
+details { margin-top: 14px; }
+summary { cursor: pointer; font-size: 13px; font-weight: 650; color: var(--ink-2); padding: 4px 0; }
+footer { margin-top: 26px; font-size: 12px; color: var(--ink-muted); line-height: 1.9; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<!-- 顶部浮窗容器。固定定位，不占文档流，所以放在最前面也不影响布局。 -->
+<div class="toasts" id="toasts"></div>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">AgileCampus 控制台<small>部署与运维</small></div>
+    <span class="spacer"></span>
+    <span id="appPill" class="pill s-serious"><span class="dot"></span><span id="appPillText">读取中…</span></span>
+    <button class="sm" id="themeBtn" type="button">切换主题</button>
+  </header>
+
+  <div class="notes" id="notes"></div>
+
+  <!-- KPI 状态卡 -->
+  <div class="grid4" style="margin-top:14px">
+
+    <div class="card">
+      <h2>应用服务</h2>
+      <div class="row"><span class="k">地址</span><span class="v"><a id="appUrl" href="#" target="_blank">—</a></span></div>
+      <div class="row"><span class="k">局域网</span><span class="v" id="appLan">—</span></div>
+      <div class="row"><span class="k">进程 / 端口</span><span class="v mono" id="appPid">—</span></div>
+      <div class="row"><span class="k">已运行</span><span class="v mono" id="appUptime">—</span></div>
+      <div class="row"><span class="k">HTTP 探针</span><span class="v mono" id="appHttp">—</span></div>
+      <div class="row"><span class="k">内存 / CPU</span><span class="v mono" id="appRes">—</span></div>
+    </div>
+
+    <div class="card">
+      <h2>数据库</h2>
+      <div class="row"><span class="k">模式</span><span class="v" id="dbMode">—</span></div>
+      <div class="row"><span class="k">连接</span><span class="v mono" id="dbDsn">—</span></div>
+      <div class="row"><span class="k">端口连通</span><span class="v" id="dbTcp">—</span></div>
+      <div class="row"><span class="k">端到端深检</span><span class="v" id="dbDeep">—</span></div>
+      <div class="row"><span class="k">数据目录</span><span class="v mono" id="dbSize">—</span></div>
+    </div>
+
+    <div class="card">
+      <h2>主机</h2>
+      <div class="meter" id="mCpu">
+        <div class="lbl"><span>CPU</span><span class="mono" id="cpuText">—</span></div>
+        <div class="track"><div class="fill" id="cpuFill" style="width:0%"></div></div>
+      </div>
+      <div class="meter" id="mMem">
+        <div class="lbl"><span>内存</span><span class="mono" id="memText">—</span></div>
+        <div class="track"><div class="fill" id="memFill" style="width:0%"></div></div>
+      </div>
+      <div class="meter" id="mDisk">
+        <div class="lbl"><span>运行目录所在磁盘</span><span class="mono" id="diskText">—</span></div>
+        <div class="track"><div class="fill" id="diskFill" style="width:0%"></div></div>
+      </div>
+      <div class="row" style="margin-top:8px"><span class="k">核心数 / 系统已运行</span><span class="v mono" id="hostMisc">—</span></div>
+    </div>
+
+    <div class="card">
+      <h2>源码与构建</h2>
+      <div class="row"><span class="k">上次构建</span><span class="v mono" id="builtAt">—</span></div>
+      <div class="row"><span class="k">源码是否已变</span><span class="v" id="srcChanged">—</span></div>
+      <div class="row"><span class="k">网络地址</span><span class="v mono" id="netIp">—</span></div>
+      <div class="row"><span class="k">面板 / Node</span><span class="v mono" id="panelInfo">—</span></div>
+    </div>
+  </div>
+
+  <!-- 当前任务的常驻状态。
+       按钮点下去之后最容易出的事是「又点了一次」和「不知道卡住没有」，
+       所以运行中这里吸顶显示进度、百分比和用时；失败时同一块变红，
+       直接把错误原文摆出来，而不是只在角落里留一条小提示。
+       放在操作卡片**外面**是因为吸顶的定位范围止于父容器：塞在卡片里，
+       卡片一滚完它就跟着走了，长任务滚到日志区就看不见进度了。 -->
+  <div class="op-live hidden" id="opLive" role="status" aria-live="polite">
+    <div class="op-live-row">
+      <span class="op-live-ic" id="opLiveIcon">⏳</span>
+      <b id="opLiveTitle">正在执行…</b>
+      <span class="spacer"></span>
+      <span class="op-live-pct" id="opLivePct">0%</span>
+    </div>
+    <div class="op-bar" id="opBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="op-bar-fill" id="opBarFill"></div>
+    </div>
+    <div class="op-live-meta" id="opLiveMeta"></div>
+    <div class="op-live-err hidden" id="opLiveErr"></div>
+    <div class="op-live-act hidden" id="opLiveAct">
+      <button class="sm" id="btnOpLog" type="button">查看任务日志</button>
+      <button class="sm" id="btnOpLiveClose" type="button">收起</button>
+    </div>
+  </div>
+
+  <!-- 操作区 -->
+  <div class="card" style="margin-top:14px">
+    <h2>操作</h2>
+    <div class="actions">
+      <button class="primary" id="btnSetup" type="button">首次部署</button>
+      <button id="btnStart" type="button">启动</button>
+      <button id="btnStop" type="button">停止</button>
+      <button id="btnRestart" type="button">重启</button>
+      <button id="btnRebuild" type="button">重新部署</button>
+      <button id="btnSync" type="button">仅同步源码</button>
+      <button id="btnHealth" type="button">体检一次</button>
+      <button class="primary" id="btnDoctor" type="button">检修数据库</button>
+      <button id="btnOpen" type="button">打开网站</button>
+      <button id="btnDbStart" type="button">启动数据库</button>
+      <button id="btnDbStop" type="button">停止数据库</button>
+      <button class="danger" id="btnResetDb" type="button">重置数据库</button>
+      <button class="danger" id="btnStopAll" type="button">全部停止并退出面板</button>
+    </div>
+    <div class="notes" id="opNotes"></div>
+  </div>
+
+  <!-- 任务面板 -->
+  <div class="card hidden" id="jobCard" style="margin-top:14px">
+    <h2><span id="jobTitle">任务</span>
+      <span class="spacer"></span>
+      <button class="sm danger" id="btnCancelJob" type="button">取消任务</button>
+    </h2>
+    <div class="steps" id="jobSteps"></div>
+    <pre class="log" id="jobLog">点击上方按钮后，这里会实时显示进度与原始输出。</pre>
+  </div>
+
+  <!-- 体检结果 -->
+  <div class="card hidden" id="healthCard" style="margin-top:14px">
+    <h2>体检结果</h2>
+    <div id="healthBody"></div>
+  </div>
+
+  <!-- 数据库检修 -->
+  <div class="card hidden" id="doctorCard" style="margin-top:14px">
+    <h2>数据库检修
+      <span class="spacer"></span>
+      <span class="muted" id="doctorMeta"></span>
+      <button class="sm" id="btnDoctorRefresh" type="button">重新检查</button>
+      <button class="sm primary" id="btnDoctorFixAll" type="button">修复全部可修项</button>
+    </h2>
+    <div class="notes" id="doctorSummary"></div>
+    <div id="doctorList"></div>
+    <div class="notes" id="doctorNotes"></div>
+  </div>
+
+  <!-- 设置。默认展开：端口、连接串、密钥这些是排查问题的第一现场，
+       折叠起来等于每次都要多点一下才看得到；而这块内容本身不占多少高度。 -->
+  <details open>
+    <summary>设置与配置</summary>
+    <div class="card" style="margin-top:10px">
+      <h2>运行参数</h2>
+      <div class="grid4">
+        <label><span class="k">应用端口</span><input type="number" id="cfgAppPort" min="1" max="65535"></label>
+        <label><span class="k">数据库端口</span><input type="number" id="cfgPgPort" min="1" max="65535"></label>
+        <label><span class="k">npm registry（留空用官方源）</span><input type="text" id="cfgRegistry" placeholder="https://registry.npmmirror.com"></label>
+        <label class="chk" style="align-self:end"><input type="checkbox" id="cfgAutoOpen"> 启动面板时自动打开浏览器</label>
+        <label class="chk" style="align-self:end"><input type="checkbox" id="cfgMirror"> 同步时精确镜像（删除运行目录里多余的文件）</label>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="primary" id="btnSaveCfg" type="button">保存配置</button>
+        <button id="btnQuickRegistry" type="button">切到国内 npm 源</button>
+      </div>
+      <div class="notes" id="cfgNotes"></div>
+      <div style="margin-top:12px" class="muted">
+        运行目录：<span class="mono" id="cfgRuntimeDir">—</span><br>
+        仓库目录（只读）：<span class="mono" id="cfgRepoDir">—</span>
+      </div>
+    </div>
+
+    <!-- 飞书自建应用。
+         配置本身还是写 .env + 重启，面板不另存一份；这张卡只负责把
+         「当前配没配」「点哪里去配」「开放平台在哪儿」摆到同一处，
+         免得用户为了找一个网址又去翻文档。 -->
+    <div class="card" style="margin-top:12px">
+      <h2>飞书自建应用
+        <span class="spacer"></span>
+        <span class="muted" id="feishuStatus">读取中…</span>
+      </h2>
+      <div class="muted" style="line-height:1.75">
+        配好后可用飞书账号登录，任务指派、完成与临期提醒会以飞书私信送达。
+        App ID / Secret 写在下方「环境变量」里，改完需重启应用才生效。
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="primary" id="btnFeishuGuide" type="button">查看配置教程</button>
+        <button id="btnFeishuEnv" type="button">去填写环境变量</button>
+        <a class="alinkbtn" href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开放平台 ↗</a>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h2>环境变量（.env）
+        <span class="spacer"></span>
+        <button class="sm" id="btnReveal" type="button">显示密钥</button>
+      </h2>
+      <div id="envBody" class="muted">读取中…</div>
+    </div>
+  </details>
+
+  <!-- 日志。
+       放在最下方是刻意的：它是「出了事才来看」的东西，平时不该占着操作区
+       与体检结果之间的视线。位置变远了，所以浮窗上那条「状态见『日志』」
+       的跳转更得管用——点一下就该滚到这里来。 -->
+  <div class="card" style="margin-top:14px">
+    <h2>日志</h2>
+    <div class="toolbar">
+      <select id="logFile">
+        <option value="app">应用输出</option>
+        <option value="apperr">应用错误</option>
+        <option value="pg">PostgreSQL</option>
+        <option value="build">构建 / 部署</option>
+        <option value="panel">面板</option>
+      </select>
+      <button class="sm" id="btnLogRefresh" type="button">刷新</button>
+      <label class="chk"><input type="checkbox" id="logFollow" checked> 跟随最新</label>
+      <span class="spacer"></span>
+      <span class="muted" id="logMeta"></span>
+    </div>
+    <pre class="log" id="logView">（无内容）</pre>
+  </div>
+
+  <footer>
+    关闭本窗口<b>不会</b>停止网站和数据库——它们是独立的用户进程。重新打开面板会自动接管正在运行的实例。<br>
+    面板只监听 127.0.0.1，对仓库目录全程只读。本方案不注册任何 Windows 服务或计划任务，因此<a href="#" id="cronHint">定时提醒</a>需另行触发。
+  </footer>
+</div>
+
+<!--
+  重置数据库的二次确认。
+  故意不用浏览器原生 confirm()：它能显示的只有一段纯文本，而这件操作最该讲清楚的
+  恰恰是「将要删掉哪几张表、各多少行」——那是个结构化的清单，不是一句话。
+  确认短语由后端校验（见 panel.mjs 的 db-reset），这里输入框只负责让用户
+  慢下来、并且没法靠点一下就把数据抹掉。
+-->
+<div class="overlay hidden" id="resetOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
+    <h2 id="resetTitle">重置数据库</h2>
+    <div class="sub">
+      这一步会把数据库<b>删掉重建</b>，其中的业务数据全部消失，且<b>无法撤销</b>。
+      下面是把当前库里真实存在的内容清点出来的结果——请核对一遍，确认它就是你打算丢弃的。
+    </div>
+
+    <div id="resetStats" class="muted" style="margin-top:14px">正在清点…</div>
+    <div class="notes" id="resetNotes"></div>
+
+    <div class="field">
+      <span class="k">
+        请输入确认短语 <b class="mono" id="resetPhrase">重置数据库</b> 后，下方按钮才会解锁：
+      </span>
+      <input type="text" class="phrase" id="resetInput" autocomplete="off" spellcheck="false" placeholder="在此原样输入">
+    </div>
+
+    <label class="chk ak">
+      <input type="checkbox" id="resetAck"> 我已确认上面列出的数据将被永久删除，并且我没有备份
+    </label>
+
+    <div class="foot">
+      <button id="btnResetCancel" type="button">取消</button>
+      <button class="danger" id="btnResetConfirm" type="button" disabled>确认重置</button>
+    </div>
+  </div>
+</div>
+
+<!--
+  飞书自建应用配置教程。
+  内容是「开放平台里点哪儿」+「.env 里填什么」的完整顺序，写成弹窗而不是
+  塞进设置卡：步骤有八条，摊在页面里会把运行参数和环境变量挤到屏幕外，
+  而它又不是每天要读的东西。回调地址里的端口由 render() 按当前应用端口填。
+-->
+<div class="overlay hidden" id="feishuOverlay">
+  <div class="modal tut" role="dialog" aria-modal="true" aria-labelledby="feishuTitle">
+    <h2 id="feishuTitle">配置飞书自建应用</h2>
+    <div class="sub">
+      按下面顺序做一遍即可。应用由你自己在飞书创建，本站只负责用它的 App ID / Secret
+      换取登录身份和发私信；Secret 相当于密码，别贴到聊天记录或仓库里。
+    </div>
+
+    <ol class="steps-tut">
+      <li><b>创建应用</b>：打开飞书开放平台 →「创建企业自建应用」，名称随意（如 AgileCampus）。</li>
+      <li><b>拿凭证</b>：进入应用 →「凭证与基础信息」，复制 <code>App ID</code> 与 <code>App Secret</code>。</li>
+      <li>
+        <b>配回调地址</b>：应用 →「安全设置」→「重定向 URL」，添加
+        <code id="feishuRedirect">http://localhost:3000/api/auth/feishu/callback</code>。
+        这里必须与下一步填进 .env 的 <code>FEISHU_REDIRECT_URI</code> <b>一字不差</b>（协议、端口、路径都要一致）；
+        部署在线上时换成对外域名，且飞书要求 <code>https</code>。
+      </li>
+      <li>
+        <b>加权限与机器人</b>：应用 →「权限管理」添加
+        <code>contact:user.base:readonly</code>（读用户基本信息，绑定用）与
+        <code>im:message:send_as_bot</code>（以应用身份发私信）；
+        再到「添加应用能力」里启用<b>机器人</b>。
+      </li>
+      <li>
+        <b>发布应用</b>：应用 →「版本管理与发布」创建版本并申请发布，由管理员审核通过。
+        应用没发布时，开放平台的接口会一律报无权限——这一步最容易被跳过。
+      </li>
+      <li>
+        <b>填写环境变量</b>：在本页下方「环境变量（.env）」里填
+        <code>FEISHU_APP_ID</code>、<code>FEISHU_APP_SECRET</code>，
+        并把 <code>FEISHU_REDIRECT_URI</code> 改成第 3 步那个地址。
+        <code>FEISHU_BASE_URL</code> 保持默认 <code>https://open.feishu.cn</code> 即可。
+      </li>
+      <li><b>重启应用</b>：回到「应用服务」卡片点「重启」，新配置才会被读入。</li>
+      <li>
+        <b>在站内绑定</b>：打开网站 → 右上角设置 →「绑定飞书」，按提示授权；
+        还没登录的话，登录页也可以直接用飞书登录。
+      </li>
+    </ol>
+
+    <div class="trouble">
+      <b>常见问题</b><br>
+      · 回跳时报 <code>state_error</code>：重定向 URL 与 <code>FEISHU_REDIRECT_URI</code> 不一致，
+      或中途换了域名/浏览器，导致 state cookie 丢失。<br>
+      · 提示「该飞书账号已绑定其他用户」：这个飞书账号已经绑过别的站内账号，先在原账号解绑。<br>
+      · 授权页说应用不可用：应用没发布，或「可用范围」里没有你。<br>
+      · 绑定成功但收不到私信：机器人能力没启用、没加 <code>im:message:send_as_bot</code>，或应用尚未发布。
+    </div>
+
+    <div class="foot">
+      <a class="alinkbtn" href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">打开飞书开放平台 ↗</a>
+      <button id="btnFeishuClose" type="button">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const TOKEN = '__AC_TOKEN__';
+const PANEL_PORT = '__AC_PANEL_PORT__';
+const $ = (id) => document.getElementById(id);
+
+/* ------------------------------ 基础工具 ------------------------------ */
+async function api(path, opts) {
+  const o = Object.assign({ headers: {} }, opts || {});
+  if (o.body !== undefined && typeof o.body !== 'string') {
+    o.body = JSON.stringify(o.body);
+  }
+  if (o.method && o.method !== 'GET') {
+    o.headers['X-AC-Token'] = TOKEN;
+    o.headers['Content-Type'] = 'application/json';
+  }
+  const res = await fetch(path, o);
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+  if (!res.ok) {
+    const msg = data && data.error ? data.error.message : (text || ('HTTP ' + res.status));
+    const err = new Error(msg);
+    err.status = res.status;
+    err.code = data && data.error ? data.error.code : null;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+const fmtBytes = (n) => {
+  if (n === null || n === undefined || Number.isNaN(n)) return '—';
+  const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0; let v = Number(n);
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return (v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)) + ' ' + u[i];
+};
+const fmtDur = (s) => {
+  if (s === null || s === undefined) return '—';
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  if (d) return d + ' 天 ' + h + ' 小时';
+  if (h) return h + ' 小时 ' + m + ' 分';
+  if (m) return m + ' 分 ' + Math.floor(s % 60) + ' 秒';
+  return Math.floor(s) + ' 秒';
+};
+const fmtTime = (ms) => ms ? new Date(ms).toLocaleString('zh-CN', { hour12: false }) : '—';
+const pct = (used, total) => (total ? Math.max(0, Math.min(100, (used / total) * 100)) : null);
+
+/* 状态一律「图标 + 文字」，绝不只靠颜色表意 */
+function note(level, text) {
+  // 正文必须是非空字符串。这里从前放过去过 `undefined`，界面上表现为一个
+  // 只印着图标的小空框——不报错、不进日志，只是把一条本该有内容的提示吞了。
+  // 宁可显示一句丑话，也不要显示一个空框：空框看起来像「没什么要紧的」。
+  if (typeof text !== 'string' || !text) {
+    level = 'warn';
+    text = '（内部错误：这条提示没有正文。多半是 note() / setNotes() 的调用方式写错了。）';
+  }
+  const ic = { good: '✓', info: 'i', warn: '!', critical: '✕' }[level] || 'i';
+  const d = document.createElement('div');
+  d.className = 'note n-' + level;
+  d.innerHTML = '<span class="ic"></span><span></span>';
+  d.querySelector('.ic').textContent = ic;
+  d.querySelector('span:last-child').textContent = text;
+  return d;
+}
+/**
+ * 往 host 里铺提示条。list 的每一项既可以是现成的 .note 元素，
+ * 也可以是 { level, text } 描述——两种都得认。
+ *
+ * 从前只认描述对象，而 report() 递过来的是**已经造好的元素**：于是
+ * n.level 与 n.text 双双取到 undefined，造出一个空壳顶掉刚做好的那条。
+ * 界面上的样子就是一个只印着「i」的小空框。让 setNotes 自己兼容两种形态，
+ * 比要求每个调用方都记住该递哪种更可靠——这个错就是这么漏出去的。
+ */
+function setNotes(host, list) {
+  host.textContent = '';
+  for (const n of list) host.appendChild(n instanceof Node ? n : note(n.level, n.text));
+}
+
+/* ------------------------------ 顶部浮窗 ------------------------------ */
+/**
+ * 操作反馈分两处，它们回答的不是同一个问题：
+ *
+ *   · 就地留痕（各卡片里的 .notes）——「这件事的结论是什么」。会一直留着，
+ *     滚动回来还看得见，也经得起刷新前的最后一眼。
+ *   · 顶部浮窗 —— 「我刚才那一下到底成没成」。几秒后自动收起，
+ *     不占版面，因为它要回答的问题马上就要过时了。
+ *
+ * 浮窗上带一个「状态见…」的跳转。按钮点下去之后最容易丢失的信息不是成败，
+ * 而是「接下来该盯着哪儿」——任务跑起来了，可进度条在页面下方外面。
+ * 所以这一条不做成装饰，做成可点的跳转：滚过去，并让那一块闪一下边框。
+ */
+
+const TOAST_ICON = { good: '✓', info: 'i', warn: '!', critical: '✕' };
+
+/** 失败留久一点：它更需要被读完。 */
+const TOAST_MS = { good: 4000, info: 4200, warn: 6500, critical: 9000 };
+
+/** 结果落在哪儿。左边是给人看的名字，右边是要滚过去的元素 id。 */
+const WHERE = {
+  job:      ['任务面板', 'jobCard'],
+  health:   ['体检结果', 'healthCard'],
+  doctor:   ['数据库检修', 'doctorCard'],
+  logs:     ['日志', 'logView'],
+  settings: ['设置与配置', 'cfgAppPort'],
+  env:      ['环境变量', 'envBody'],
+  ops:      ['操作区', 'opNotes'],
+};
+
+/**
+ * 同一个 key 的浮窗只有一个，后来的**就地改写**它而不是再堆一条。
+ * 长任务点下去会先弹「已开始」，跑完再弹「已完成」——两条说的是同一件事的
+ * 先后两半，堆成两条反而像是点了两次。就地改写读起来是「那一条更新了」。
+ * （全局任务互斥保证了同一时刻只有一个任务，所以任务类共用一个 key 是对的。）
+ */
+function findToast(key) {
+  if (!key) return null;
+  for (const el of $('toasts').children) if (el.dataset.key === key) return el;
+  return null;
+}
+
+function dismissToast(el) {
+  if (!el || el.dataset.gone === '1') return;
+  el.dataset.gone = '1';
+  clearTimeout(Number(el.dataset.timer));
+  el.classList.add('out');
+  setTimeout(() => {
+    // 收起的这 220ms 里有可能被同 key 的新消息救活，救活了就别删
+    if (el.dataset.gone === '1' && el.classList.contains('out')) el.remove();
+  }, 220);
+}
+
+function armToast(el) {
+  clearTimeout(Number(el.dataset.timer));
+  const level = (el.className.match(/t-(\w+)/) || [])[1];
+  el.dataset.timer = String(setTimeout(() => dismissToast(el), TOAST_MS[level] || 4200));
+}
+
+/** 滚到目标区域并闪一下边框——回答「你说的那个面板在哪儿」。 */
+function goTo(id) {
+  const el = $(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.remove('flash');
+  void el.offsetWidth; // 强制重排，让同一个动画能再次触发
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1400);
+}
+
+function toast(level, text, where, key) {
+  const host = $('toasts');
+  let el = findToast(key);
+  if (!el) {
+    el = document.createElement('div');
+    el.dataset.key = key || '';
+    // 骨架是写死的字面量，不含任何外部数据
+    el.innerHTML = '<span class="ic"></span><div class="body"><div class="msg"></div></div>'
+      + '<button type="button" class="x" title="关闭">✕</button>';
+    el.querySelector('.x').onclick = () => dismissToast(el);
+    // 鼠标停上去就别收走——正要读的时候消失是最恼人的
+    el.addEventListener('mouseenter', () => clearTimeout(Number(el.dataset.timer)));
+    el.addEventListener('mouseleave', () => armToast(el));
+    host.appendChild(el);
+  }
+
+  el.className = 'toast t-' + level;
+  el.dataset.gone = '';
+  el.querySelector('.ic').textContent = TOAST_ICON[level] || 'i';
+  el.querySelector('.msg').textContent = text;
+
+  // 「状态见…」每次都重建：新的这条未必还该指向同一个地方
+  const body = el.querySelector('.body');
+  for (const old of body.querySelectorAll('.where')) old.remove();
+  const target = where && WHERE[where];
+  if (target) {
+    const [label, id] = target;
+    const go = document.createElement('button');
+    go.type = 'button';
+    go.className = 'where';
+    go.textContent = '状态见「' + label + '」 →';
+    go.onclick = () => goTo(id);
+    body.appendChild(go);
+  }
+
+  armToast(el);
+  // 堆太多就顶掉最老的（但不顶掉刚刚更新的这一条）
+  while (host.childElementCount > 4) {
+    const victim = [...host.children].find((x) => x !== el && x.dataset.gone !== '1');
+    if (!victim) break;
+    dismissToast(victim);
+  }
+  return el;
+}
+
+/**
+ * 一次性写好「就地留痕」和「顶部浮窗」。
+ * 两处说的永远是同一件事，分成两句写迟早会漂移成一处说成功、另一处说失败。
+ */
+function report(hostId, level, text, where, key) {
+  setNotes($(hostId), [note(level, text)]);
+  toast(level, text, where, key);
+}
+
+/* ------------------------------ 状态渲染 ------------------------------ */
+const APP_STATE = {
+  running:   ['s-good',     '运行中'],
+  unhealthy: ['s-warning',  '进程在但端口未就绪'],
+  orphan:    ['s-serious',  '端口被外部进程占用'],
+  stopped:   ['s-critical', '已停止'],
+  unknown:   ['s-serious',  '状态未知'],
+};
+let lastState = null;
+
+/**
+ * 操作按钮的统一锁。
+ *
+ * 只在 render() 里按 /api/state 的 jobs.running 置灰是不够的：轮询 2 秒一次，
+ * 用户点完第一下到下一次状态回来之间，按钮看起来完全还能点——连点几下就会
+ * 撞上后端 409「已有任务在进行」。所以点下去的那一刻本地就先锁住（opsBusy），
+ * POST 在途期间也算锁（opPending），不必等任何一次轮询。
+ */
+let opsBusy = false;
+let opPending = false;
+const OP_BUTTON_IDS = [
+  'btnSetup', 'btnStart', 'btnStop', 'btnRestart', 'btnRebuild', 'btnSync',
+  'btnDbStart', 'btnDbStop', 'btnResetDb', 'btnStopAll',
+  'btnDoctor', 'btnDoctorRefresh', 'btnDoctorFixAll',
+];
+
+/** serverRunning 由 render() 传入；本地没锁时以服务端为准（刷新页面也能锁住）。 */
+function applyOpsBusy(serverRunning) {
+  const busy = opsBusy || opPending || Boolean(serverRunning);
+  for (const id of OP_BUTTON_IDS) {
+    const b = $(id);
+    if (b) b.disabled = busy;
+  }
+}
+function setOpsBusy(v) {
+  opsBusy = Boolean(v);
+  applyOpsBusy(lastState && lastState.jobs.running);
+}
+
+function render(state) {
+  lastState = state;
+  const a = state.app, db = state.db, h = state.host;
+
+  const [cls, label] = APP_STATE[a.state] || APP_STATE.unknown;
+  const extra = a.state === 'running' && a.adopted ? '（面板接管中）' : '';
+  $('appPill').className = 'pill ' + cls;
+  $('appPillText').textContent = label + extra;
+
+  $('appUrl').textContent = a.urlLocal;
+  $('appUrl').href = a.urlLocal;
+  $('appLan').textContent = a.urlLan || '未检测到局域网地址';
+  $('appPid').textContent = (a.pid ? 'PID ' + a.pid : '无进程') + ' / :' + a.port;
+  $('appUptime').textContent = fmtDur(a.uptimeSec);
+  $('appHttp').textContent = a.httpStatus ? ('HTTP ' + a.httpStatus + ' · ' + a.httpMs + 'ms') : '无响应';
+  $('appRes').textContent = fmtBytes(a.proc.rssBytes) + ' / ' + (a.proc.cpuPercent === null ? '—' : a.proc.cpuPercent.toFixed(1) + '%');
+
+  const MODE = { portable: '便携版（面板托管）', external: '外部数据库', unconfigured: '未配置' };
+  $('dbMode').textContent = MODE[db.mode] || db.mode;
+  $('dbDsn').textContent = db.dsnLabel || '—';
+  $('dbTcp').textContent = db.tcpReachable ? ('连通 · ' + db.tcpMs + 'ms') : '不通';
+  const DEEP = { 'all-ok': '通过（应用→数据库→数据表全链路）', 'db-error': '失败：应用在跑但数据库查询报错', 'app-down': '应用未运行', unexpected: '返回了预期之外的状态' };
+  $('dbDeep').textContent = db.deep ? (DEEP[db.deep.verdict] || db.deep.verdict) + (db.deep.status ? '（HTTP ' + db.deep.status + '）' : '') : '未检测';
+  $('dbSize').textContent = db.mode === 'portable' && db.dataDir ? (db.dataDir + (db.version ? '（PG ' + db.version + '）' : '')) : '—';
+
+  const setMeter = (id, textId, fillId, percent, text) => {
+    $(fillId).style.width = (percent === null ? 0 : percent) + '%';
+    $(id).className = 'meter' + (percent === null ? '' : percent >= 92 ? ' is-critical' : percent >= 80 ? ' is-high' : '');
+    $(textId).textContent = text + (percent === null ? '' : ' · ' + percent.toFixed(0) + '%' + (percent >= 92 ? '（紧张）' : percent >= 80 ? '（偏高）' : ''));
+  };
+  setMeter('mCpu', 'cpuText', 'cpuFill', h.cpuPercent, '—');
+  const memPct = pct(h.memTotalBytes - h.memFreeBytes, h.memTotalBytes);
+  setMeter('mMem', 'memText', 'memFill', memPct, fmtBytes(h.memTotalBytes - h.memFreeBytes) + ' / ' + fmtBytes(h.memTotalBytes));
+  const disk = h.disk || {};
+  const diskPct = disk.totalBytes ? pct(disk.totalBytes - disk.freeBytes, disk.totalBytes) : null;
+  setMeter('mDisk', 'diskText', 'diskFill', diskPct, '剩余 ' + fmtBytes(disk.freeBytes));
+  $('hostMisc').textContent = h.cores + ' 核 / ' + fmtDur(h.uptimeSec);
+
+  $('builtAt').textContent = fmtTime(state.config.builtAt);
+  $('srcChanged').textContent = state.app.sourceChanged === null ? '尚未构建' : state.app.sourceChanged ? '是（需重新部署）' : '否';
+  $('netIp').textContent = (state.net.lanIp || '未检测到') + (state.net.lanIpSource ? '（' + state.net.lanIpSource + '）' : '');
+  $('panelInfo').textContent = ':' + state.panel.port + ' / ' + state.panel.nodeVersion + (state.panel.elevated ? ' / 管理员' : '');
+
+  // 等级由后端给，前端只做一次归一。曾经这里按 code 白名单硬编码，
+  // 结果后端的 fail 级告警（比如「.env 的连接串与面板配置不一致」——
+  // 那正是应用连不上库的成因）被静默降级成了灰色 info，等于没报。
+  const LV = { fail: 'critical', warn: 'warn', ok: 'good' };
+  setNotes($('notes'), state.warnings.map((w) => ({
+    level: LV[w.level] || 'info',
+    text: w.text,
+  })));
+
+  $('cfgRuntimeDir').textContent = state.panel.runtimeDir;
+  $('cfgRepoDir').textContent = state.panel.repoDir;
+
+  // 飞书配置状态。真假由后端按 .env 里的 APP_ID/SECRET 判定，
+  // 前端只管显示——两边各判一次早晚会判得不一样。
+  const feishuOk = Boolean(state.config.feishuConfigured);
+  $('feishuStatus').textContent = feishuOk ? '已配置' : '未配置';
+  $('feishuStatus').style.color = feishuOk ? 'var(--good)' : 'var(--ink-muted)';
+  // 教程里的回调地址跟着当前应用端口走；端口改了这里也就跟着变了，
+  // 否则用户照着写死 3000 的旧地址去配，回跳必然失败。
+  const appPort = (state.ports && state.ports.appPort) || 3000;
+  $('feishuRedirect').textContent = 'http://localhost:' + appPort + '/api/auth/feishu/callback';
+
+  applyOpsBusy(state.jobs.running);
+  renderDoctorBadge(state.dbDoctor);
+}
+
+/* ---------------------------- 数据库检修 ---------------------------- */
+/**
+ * 检修：先诊断（一组「哪一环断了」的检查），再按项修复。
+ *
+ * 与「体检一次」的分工：体检看的是「现在活着吗」（进程/端口/HTTP/探针），
+ * 检修看的是「配置与数据自洽吗」（连接串、密码、密钥、表结构）。
+ * 故障经常是后者：一切「在跑」，但应用读的是另一个库。
+ */
+let doctorData = null;
+
+const DOC_ICON = { ok: '✓', warn: '!', fail: '✕', skip: '·' };
+const DOC_LABEL = { ok: '通过', warn: '留意', fail: '未通过', skip: '跳过' };
+
+/**
+ * 把上次检修的结论挂到告警区顶部。
+ * 结果存在面板进程里，所以刷新页面也还在——故障不会因为切了个页面就被忘掉。
+ */
+function renderDoctorBadge(d) {
+  if (!d || (!d.summary.fail && !d.summary.warn)) return;
+  $('notes').appendChild(
+    note(
+      d.summary.fail ? 'critical' : 'warn',
+      `上次数据库检修（${fmtTime(d.at)}${d.stale ? '，结果可能已过时' : ''}）` +
+        `${d.summary.fail ? `有 ${d.summary.fail} 项未通过` : ''}${d.summary.fail && d.summary.warn ? '、' : ''}` +
+        `${d.summary.warn ? `有 ${d.summary.warn} 项需留意` : ''}。点「检修数据库」查看并修复。`
+    )
+  );
+}
+
+function renderDoctor(payload) {
+  doctorData = payload;
+  const host = $('doctorList');
+  host.textContent = '';
+  $('doctorMeta').textContent = payload.at ? '检查于 ' + fmtTime(payload.at) : '';
+
+  const s = payload.summary;
+  setNotes($('doctorSummary'), [
+    {
+      level: s.fail ? 'critical' : s.warn ? 'warn' : 'good',
+      text:
+        `共 ${payload.checks.length} 项：通过 ${s.ok}，未通过 ${s.fail}，留意 ${s.warn}` +
+        (s.skipped ? `，跳过 ${s.skipped}` : '') + '。',
+    },
+  ]);
+
+  for (const c of payload.checks) {
+    const row = document.createElement('div');
+    row.className = 'doc-row lv-' + c.level;
+
+    const st = document.createElement('span');
+    st.className = 'st';
+    st.textContent = DOC_ICON[c.level] || '·';
+    st.title = DOC_LABEL[c.level] || c.level;
+
+    const body = document.createElement('div');
+    body.className = 'doc-body';
+    const t = document.createElement('div');
+    t.className = 'doc-title';
+    t.textContent = c.title + '　';
+    const badge = document.createElement('span');
+    badge.className = 'muted';
+    badge.textContent = '[' + (DOC_LABEL[c.level] || c.level) + ']';
+    t.appendChild(badge);
+    const d = document.createElement('div');
+    d.className = 'doc-detail';
+    d.textContent = c.detail;
+    body.append(t, d);
+
+    row.append(st, body);
+
+    if (c.fixId && payload.fixes[c.fixId]) {
+      const act = document.createElement('div');
+      act.className = 'doc-act';
+      const destructive = payload.fixes[c.fixId].destructive;
+      if (destructive) row.classList.add('is-destructive');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sm' + (destructive ? ' danger' : '');
+      b.textContent = '修复：' + payload.fixes[c.fixId].title;
+      b.onclick = () => runRepair([c.fixId], destructive);
+      act.appendChild(b);
+      row.appendChild(act);
+    }
+    host.appendChild(row);
+  }
+
+  const fixable = [...new Set(payload.checks.filter((c) => c.fixId && !payload.fixes[c.fixId].destructive).map((c) => c.fixId))];
+  const btn = $('btnDoctorFixAll');
+  // 本地锁也要算进去：否则点下「一键修复」到下一次 /api/state 回来之间，
+  // 这个按钮会被 renderDoctorBadge 重新解开。
+  btn.disabled = !fixable.length || opsBusy || opPending || Boolean(lastState && lastState.jobs.running);
+  btn.dataset.ids = JSON.stringify(fixable);
+}
+
+async function loadDoctor() {
+  $('doctorCard').classList.remove('hidden');
+  $('doctorList').textContent = '正在检查…';
+  setNotes($('doctorSummary'), []);
+  toast('info', '正在检查数据库…', null, 'doctor');
+  try {
+    const p = await api('/api/ops/db-doctor', { method: 'POST', body: {} });
+    renderDoctor(p);
+    const s = p.summary;
+    toast(
+      s.fail ? 'critical' : s.warn ? 'warn' : 'good',
+      s.fail ? `检修完成：${s.fail} 项未通过。` : s.warn ? `检修完成：${s.warn} 项需留意。` : '检修完成：全部通过。',
+      'doctor',
+      'doctor'
+    );
+  } catch (e) {
+    $('doctorList').textContent = '';
+    setNotes($('doctorSummary'), [{ level: 'critical', text: '检查失败：' + e.message }]);
+    toast('critical', '检修未能完成：' + e.message, 'doctor', 'doctor');
+  }
+}
+
+async function runRepair(ids, destructive) {
+  if (destructive) {
+    const ok = confirm(
+      '「清空数据簇并重建」会永久删除数据库里的全部数据（用户、项目、任务、会话全部消失），且无法撤销。\n\n' +
+        '只有在数据已经无法修复、或者你本来就打算从零开始时才这么做。\n\n确认继续？'
+    );
+    if (!ok) return;
+  }
+  setNotes($('doctorNotes'), []);
+  const label = `数据库修复（${ids.length} 项）`;
+  opPending = true;
+  setOpsBusy(true);
+  beginOpLive(label);
+  try {
+    const r = await api('/api/ops/db-repair', { method: 'POST', body: { ids, confirmDestructive: Boolean(destructive) } });
+    opPending = false;
+    if (!r.jobId) {
+      // 没有任务 id 就没有可订阅的进度；别把按钮永久锁死。
+      setOpsBusy(false);
+      finishOpLive(label);
+      toast('info', '修复请求已提交，但没有返回任务 id；请查看日志确认结果。', 'logs', 'job');
+      return;
+    }
+    watchJob(r.jobId);
+    toast('info', `已开始修复：${ids.length} 项（完成前操作按钮已锁定）`, 'job', 'job');
+    // repair() 收尾时会自己再诊一次，等任务结束把那份结果取回来重画。
+    // 不能只听 SSE 的 status——页面刷新后就断线了。
+    const t = setInterval(async () => {
+      try {
+        const j = await api('/api/jobs/' + r.jobId);
+        if (j && j.status !== 'running') {
+          clearInterval(t);
+          await loadDoctor();
+        }
+      } catch {
+        clearInterval(t);
+      }
+    }, 1500);
+  } catch (e) {
+    opPending = false;
+    setOpsBusy(false);
+    failOpLive(label, e.message);
+    setNotes($('doctorNotes'), [{ level: 'critical', text: '修复未能启动：' + e.message }]);
+    toast('critical', '修复未能启动：' + e.message, 'doctor', 'job');
+  }
+}
+
+$('btnDoctor').onclick = loadDoctor;
+$('btnDoctorRefresh').onclick = loadDoctor;
+$('btnDoctorFixAll').onclick = () => {
+  const ids = JSON.parse($('btnDoctorFixAll').dataset.ids || '[]');
+  if (ids.length) runRepair(ids, false);
+};
+
+/* ---------------------------- 重置数据库 ---------------------------- */
+/**
+ * 两道门槛，它们拦的不是同一件事：
+ *
+ *   · 输入确认短语 —— 拦「没看清就点」。短语是固定的四个字，抄一遍的成本
+ *     刚好等于把对话框读一遍的成本；它没法被一个复选框替代。
+ *   · 勾选承认无备份 —— 拦「看清了但没意识到不可逆」。
+ *
+ * 只留一个都会退化：短语单独存在时人会无脑复制粘贴，勾选框单独存在时
+ * 人会随手一点。两个都要。
+ *
+ * 真正的安全边界在服务端（panel.mjs 校验后 dbdoctor 再校验一次），
+ * 这里做的一切都只是让人慢下来。
+ */
+let resetPhrase = '重置数据库';
+
+function resetUnlock() {
+  const v = $('resetInput').value.trim();
+  const typed = v === resetPhrase;
+  $('resetInput').classList.toggle('bad', v.length > 0 && !typed);
+  $('btnResetConfirm').disabled = !(typed && $('resetAck').checked);
+}
+
+function closeResetDialog() {
+  $('resetOverlay').classList.add('hidden');
+  $('resetInput').value = '';
+  $('resetAck').checked = false;
+  resetUnlock();
+}
+
+async function openResetDialog() {
+  $('resetOverlay').classList.remove('hidden');
+  $('resetInput').value = '';
+  $('resetAck').checked = false;
+  resetUnlock();
+  $('resetInput').focus();
+
+  const host = $('resetStats');
+  host.textContent = '正在清点当前数据库…';
+  setNotes($('resetNotes'), []);
+  try {
+    const p = await api('/api/ops/db-reset-preview', { method: 'POST', body: {} });
+    resetPhrase = p.phrase || resetPhrase;
+    $('resetPhrase').textContent = resetPhrase;
+    renderResetPreview(p);
+  } catch (e) {
+    host.textContent = '';
+    setNotes($('resetNotes'), [{ level: 'critical', text: '清点失败：' + e.message }]);
+  }
+  resetUnlock();
+}
+
+function renderResetPreview(p) {
+  const host = $('resetStats');
+  host.textContent = '';
+  const notes = [];
+
+  const cap = document.createElement('div');
+  cap.className = 'row';
+  const k = document.createElement('span');
+  k.className = 'k';
+  k.textContent = '将要重置的库';
+  const v = document.createElement('span');
+  v.className = 'v mono';
+  v.textContent = `${p.user}@${p.host}:${p.port}/${p.database}`;
+  cap.append(k, v);
+  host.appendChild(cap);
+
+  if (!p.reachable) {
+    notes.push({
+      level: 'warn',
+      text: '数据库当前连不上，数不出行数。重置仍会照常执行（删库、重建、推表结构），往往顺带把连不上的问题一并解决——但也意味着你此时看不到自己会丢掉什么。',
+    });
+  } else if (!p.tables.length) {
+    notes.push({ level: 'good', text: '这个库目前没有任何表，重置不会丢掉数据。' });
+  } else {
+    const rows = p.tables.slice().sort((a, b) => b.rows - a.rows);
+    const box = document.createElement('div');
+    box.className = 'rm-table';
+    const t = document.createElement('table');
+
+    const thead = document.createElement('thead');
+    const htr = document.createElement('tr');
+    for (const [label, cls] of [['数据表', ''], ['行数', 'num']]) {
+      const th = document.createElement('th');
+      th.textContent = label;
+      if (cls) th.className = cls;
+      htr.appendChild(th);
+    }
+    thead.appendChild(htr);
+
+    const tb = document.createElement('tbody');
+    for (const x of rows) {
+      const tr = document.createElement('tr');
+      const a = document.createElement('td');
+      a.className = 'k';
+      a.textContent = x.name;
+      const b = document.createElement('td');
+      b.className = 'num';
+      b.textContent = String(x.rows);
+      tr.append(a, b);
+      tb.appendChild(tr);
+    }
+    const tot = document.createElement('tr');
+    tot.className = 'total';
+    const ta = document.createElement('td');
+    ta.textContent = '合计';
+    const tb2 = document.createElement('td');
+    tb2.className = 'num';
+    tb2.textContent = `${rows.length} 张表 / ${p.totalRows} 行`;
+    tot.append(ta, tb2);
+    tb.appendChild(tot);
+
+    t.append(thead, tb);
+    box.appendChild(t);
+    host.appendChild(box);
+  }
+
+  if (p.external) {
+    notes.push({
+      level: 'critical',
+      text: `注意：这是外部数据库（${p.host}:${p.port}），不是面板自带的便携实例。请先确认这个库没有别人在用——重置会把它整个删掉重建。`,
+    });
+  }
+  if (p.note) notes.push({ level: 'warn', text: p.note });
+  if (p.expected && p.reachable && p.tables.length && p.tables.length !== p.expected) {
+    notes.push({
+      level: 'warn',
+      text: `源码里声明了 ${p.expected} 张表，库里现在有 ${p.tables.length} 张。重置后会按源码重建为 ${p.expected} 张，多出来的那些不会回来。`,
+    });
+  }
+  setNotes($('resetNotes'), notes);
+}
+
+async function doReset() {
+  const btn = $('btnResetConfirm');
+  btn.disabled = true;
+  btn.textContent = '正在提交…';
+  opPending = true;
+  setOpsBusy(true);
+  beginOpLive('重置数据库');
+  try {
+    const r = await api('/api/ops/db-reset', { method: 'POST', body: { confirmText: $('resetInput').value.trim() } });
+    opPending = false;
+    closeResetDialog();
+    setNotes($('opNotes'), []);
+    if (!r.jobId) {
+      // 没有任务 id 就没法订阅进度；别让按钮一直锁着。
+      setOpsBusy(false);
+      failOpLive('重置数据库', '服务端没有返回任务 id；请到日志里确认重置是否真的开始了。');
+      return;
+    }
+    watchJob(r.jobId);
+    toast('info', '已开始重置数据库：删库 → 重建 → 推表结构 → 重启应用（完成前操作按钮已锁定）', 'job', 'job');
+  } catch (e) {
+    opPending = false;
+    setOpsBusy(false);
+    failOpLive('重置数据库', e.message);
+    setNotes($('resetNotes'), [{ level: 'critical', text: '重置未能启动：' + e.message }]);
+    toast('critical', '重置未能启动：' + e.message, null, 'job');
+    btn.textContent = '确认重置';
+    resetUnlock();
+    return;
+  }
+  btn.textContent = '确认重置';
+}
+
+$('btnResetDb').onclick = openResetDialog;
+$('btnResetCancel').onclick = closeResetDialog;
+$('resetInput').oninput = resetUnlock;
+$('resetAck').onchange = resetUnlock;
+$('btnResetConfirm').onclick = doReset;
+// 点遮罩空白处 / 按 Esc = 取消。这两个都是「放弃」，永远不会误触成确认。
+$('resetOverlay').onclick = (e) => { if (e.target === $('resetOverlay')) closeResetDialog(); };
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('resetOverlay').classList.contains('hidden')) closeResetDialog();
+});
+
+/* ------------------------------ 飞书配置教程 ------------------------------ */
+// 纯说明性弹窗，没有确认动作，所以点遮罩/Esc 直接关掉，不用像重置那样拦一下。
+function closeFeishuGuide() { $('feishuOverlay').classList.add('hidden'); }
+
+$('btnFeishuGuide').onclick = () => $('feishuOverlay').classList.remove('hidden');
+$('btnFeishuClose').onclick = closeFeishuGuide;
+$('btnFeishuEnv').onclick = () => goTo('envBody');
+$('feishuOverlay').onclick = (e) => { if (e.target === $('feishuOverlay')) closeFeishuGuide(); };
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('feishuOverlay').classList.contains('hidden')) closeFeishuGuide();
+});
+
+/* ------------------------------ 操作进度横幅 ------------------------------ */
+/**
+ * 与任务卡片共用同一份 snapshot，不另存一套进度状态。
+ *
+ * 百分比只能按「步骤完成数 / 总步骤数」算：子进程（npm ci、next build）
+ * 不吐结构化的百分比，硬解析输出只会得到假数。所以另外用两条信息证明任务
+ * 还活着——秒级刷新的「已用时」，以及运行中一直在走的斜纹。
+ */
+let opLiveSnap = null;
+let opTick = null;
+let opStartAt = null;
+// 用户把失败横幅收起来后，refreshJobs 每 3 秒还会拿 lastFinished 重画一遍；
+// 记住被收起的是哪个任务，避免它自己又弹回来。
+let opLiveDismissedId = null;
+
+const OP_LIVE_ICON = { running: '⏳', succeeded: '✓', failed: '✕', cancelled: '·' };
+
+function opPercent(snap) {
+  if (snap.status !== 'running') return 100;
+  const total = snap.steps ? snap.steps.length : 0;
+  if (!total) return null;
+  const done = snap.steps.filter((s) => s.status === 'done').length;
+  // 运行中最多显示 99%：100% 只能由真正的终态给出，否则最后一步跑很久时
+  // 界面会一直停在 100%，看起来像卡住了。
+  return Math.min(99, Math.round((done / total) * 100));
+}
+
+function opStepText(snap) {
+  const steps = snap.steps || [];
+  if (!steps.length) return '';
+  // 优先信 currentStep：失败时它指向出错那一步，而不是最后一步。
+  let idx = snap.currentStep;
+  if (idx < 0 || !steps[idx]) idx = steps.findIndex((s) => s.status === 'running');
+  if ((idx < 0 || !steps[idx]) && snap.status !== 'running') {
+    // 快照里没带 currentStep 时，退回到最后一个真正跑过（或失败）的步骤
+    for (let i = steps.length - 1; i >= 0; i--) {
+      if (steps[i].status === 'done' || steps[i].status === 'failed') { idx = i; break; }
+    }
+  }
+  if (idx < 0 || !steps[idx]) return '';
+  return `第 ${idx + 1}/${steps.length} 步 · ${steps[idx].title}`;
+}
+
+function opMetaText(snap) {
+  const parts = [];
+  const step = opStepText(snap);
+  if (step) parts.push(step);
+  const end = snap.endedAt || Date.now();
+  const secs = Math.max(0, Math.round((end - snap.startedAt) / 1000));
+  parts.push((snap.status === 'running' ? '已用时 ' : '用时 ') + fmtDur(secs));
+  if (snap.status === 'running') parts.push('操作按钮已锁定，请等任务结束或点「取消任务」');
+  return parts.join(' · ');
+}
+
+function stopOpTicker() {
+  clearInterval(opTick);
+  opTick = null;
+}
+
+function startOpTicker() {
+  if (opTick) return;
+  opTick = setInterval(() => {
+    if (!opLiveSnap || opLiveSnap.status !== 'running') return stopOpTicker();
+    $('opLiveMeta').textContent = opMetaText(opLiveSnap);
+  }, 1000);
+}
+
+function renderOpLive(snap) {
+  opLiveSnap = snap;
+  const box = $('opLive');
+  if (snap.status !== 'running' && snap.id && snap.id === opLiveDismissedId) {
+    box.classList.add('hidden');
+    stopOpTicker();
+    return;
+  }
+  box.classList.remove('hidden', 'is-running', 'is-good', 'is-bad', 'is-muted');
+  box.classList.add(
+    snap.status === 'running' ? 'is-running'
+      : snap.status === 'succeeded' ? 'is-good'
+      : snap.status === 'failed' ? 'is-bad'
+      : 'is-muted'
+  );
+
+  $('opLiveIcon').textContent = OP_LIVE_ICON[snap.status] || 'i';
+  const title = snap.title || '任务';
+  $('opLiveTitle').textContent = {
+    running: '正在执行：' + title,
+    succeeded: '已完成：' + title,
+    failed: '执行失败：' + title,
+    cancelled: '已取消：' + title,
+  }[snap.status] || title;
+
+  const p = opPercent(snap);
+  $('opLivePct').textContent = p === null ? '—' : p + '%';
+  $('opBar').setAttribute('aria-valuenow', String(p === null ? 0 : p));
+  // 没有步骤数据时（任务刚开始、或后端给了空步骤表），让条铺满并压低透明度，
+  // 靠运行中的斜纹表达「在进行」，而不是谎报一个 0%。
+  $('opBarFill').style.width = (p === null ? 100 : p) + '%';
+  $('opBarFill').style.opacity = p === null ? '.35' : '';
+
+  $('opLiveMeta').textContent = opMetaText(snap);
+
+  const err = $('opLiveErr');
+  const act = $('opLiveAct');
+  if (snap.status === 'failed') {
+    err.textContent = snap.error || '任务失败，但服务端没有给出错误信息；请查看任务日志。';
+    err.classList.remove('hidden');
+    act.classList.remove('hidden');
+  } else {
+    err.textContent = '';
+    err.classList.add('hidden');
+    act.classList.add('hidden');
+  }
+
+  if (snap.status === 'running') startOpTicker();
+  else stopOpTicker();
+}
+
+/** 把最后一份运行中的快照改成终态：服务端的 status 事件只带状态，不带完整快照。 */
+function finalizeOpSnap(snap, status, error) {
+  const base = snap || { title: '任务', startedAt: opStartAt || Date.now(), steps: [], currentStep: -1 };
+  const steps = (base.steps || []).map((s) => ({
+    ...s,
+    // 客户端也把 running 收掉，否则任务卡片的步骤标签会永远停在「运行中」
+    status: s.status === 'running' ? (status === 'succeeded' ? 'done' : 'failed') : s.status,
+  }));
+  return Object.assign({}, base, { status, error: error || null, endedAt: Date.now(), steps });
+}
+
+function beginOpLive(label) {
+  opStartAt = Date.now();
+  opLiveDismissedId = null;
+  renderOpLive({
+    title: label, status: 'running', startedAt: opStartAt,
+    endedAt: null, steps: [], currentStep: -1, error: null,
+  });
+}
+
+function failOpLive(label, error) {
+  renderOpLive(finalizeOpSnap(
+    { title: label, startedAt: opStartAt || Date.now(), steps: [], currentStep: -1 },
+    'failed',
+    error
+  ));
+}
+
+function finishOpLive(label) {
+  renderOpLive(finalizeOpSnap(
+    { title: label, startedAt: opStartAt || Date.now(), steps: [], currentStep: -1 },
+    'succeeded'
+  ));
+}
+
+$('btnOpLog').onclick = () => goTo('jobLog');
+$('btnOpLiveClose').onclick = () => {
+  opLiveDismissedId = (opLiveSnap && opLiveSnap.id) || '__no_id__';
+  $('opLive').classList.add('hidden');
+  stopOpTicker();
+};
+
+/* ------------------------------ 任务 ------------------------------ */
+/**
+ * rebuildLog 只在 SSE 首次下发 snapshot 时为真。
+ * 3 秒一次的轮询若也整体重建日志，会不停重置滚动位置，
+ * 而增量行本来就已经由 SSE 的 log 事件追加过了。
+ */
+function renderJob(snap, rebuildLog) {
+  $('jobCard').classList.remove('hidden');
+  $('jobTitle').textContent = snap.title + '（' + snap.id + '）';
+  $('btnCancelJob').disabled = snap.status !== 'running';
+  const box = $('jobSteps');
+  box.textContent = '';
+  snap.steps.forEach((s, i) => {
+    const el = document.createElement('span');
+    el.className = 'step ' + (s.status === 'pending' ? '' : s.status);
+    el.textContent = (i + 1) + '. ' + s.title + (s.detail ? ' · ' + s.detail : '');
+    box.appendChild(el);
+  });
+
+  const pre = $('jobLog');
+  if (rebuildLog) {
+    pre.textContent = '';
+    pre.dataset.placeholder = '0';
+    pre.dataset.ended = '';
+    for (const l of snap.lines || []) appendJobLine(l);
+  }
+  // 结束语只贴一次，否则每次轮询都会多出一行
+  if (snap.status !== 'running' && pre.dataset.ended !== '1') {
+    pre.dataset.ended = '1';
+    const tail = document.createElement('div');
+    tail.textContent = '\n— 任务' + ({ succeeded: '成功结束', failed: '失败', cancelled: '已取消' }[snap.status] || snap.status) + ' —';
+    pre.appendChild(tail);
+    if (snap.error) { const e = document.createElement('div'); e.className = 'e'; e.textContent = snap.error; pre.appendChild(e); }
+  }
+  pre.scrollTop = pre.scrollHeight;
+
+  // 操作栏的进度横幅跟任务卡片吃同一份快照，省得两处各算一套进度。
+  renderOpLive(snap);
+}
+function appendJobLine(entry) {
+  const pre = $('jobLog');
+  if (pre.dataset.placeholder !== '0') { pre.textContent = ''; pre.dataset.placeholder = '0'; }
+  const div = document.createElement('div');
+  if (entry.stream === 'err') div.className = 'e';
+  div.textContent = entry.text;
+  pre.appendChild(div);
+  while (pre.childNodes.length > 1200) pre.removeChild(pre.firstChild);
+  if ($('logFollow') && pre.scrollHeight - pre.scrollTop < pre.clientHeight + 120) pre.scrollTop = pre.scrollHeight;
+}
+
+let jobStream = null;
+
+/** 任务已经结束了就别再挂着长连接——服务端不会再发 status 事件了。 */
+function closeJobStream() {
+  jobStream?.close();
+  jobStream = null;
+  refreshJobs();
+  poll();
+}
+
+function watchJob(jobId) {
+  jobStream?.close();
+  let title = ''; // 从 snapshot 里取任务标题，收尾时用得上（不靠调用方传参）
+  jobStream = new EventSource('/api/jobs/' + jobId + '/stream');
+  jobStream.addEventListener('snapshot', (e) => {
+    const snap = JSON.parse(e.data);
+    title = snap.title || title;
+    if (snap.status === 'running') setOpsBusy(true);
+    renderJob(snap, true);
+    // 快任务（同步源码、停止）可能在 EventSource 连上之前就跑完了，
+    // 这时 snapshot 一上来就是终态，直接收尾。
+    if (snap.status !== 'running') {
+      setOpsBusy(false);
+      closeJobStream();
+    }
+  });
+  jobStream.addEventListener('log', (e) => appendJobLine(JSON.parse(e.data).entry));
+  jobStream.addEventListener('step', (e) => {
+    // 进度横幅就地前进一步，不等 3 秒一次的 refreshJobs；步骤标签仍由它刷新。
+    const d = JSON.parse(e.data);
+    const steps = opLiveSnap && opLiveSnap.steps;
+    if (Array.isArray(steps) && steps[d.index]) {
+      const prev = steps[opLiveSnap.currentStep];
+      if (prev && prev.status === 'running') prev.status = 'done';
+      opLiveSnap.currentStep = d.index;
+      steps[d.index] = Object.assign({}, steps[d.index], d.step);
+      renderOpLive(opLiveSnap);
+    }
+    refreshJobs();
+  });
+  jobStream.addEventListener('status', (e) => {
+    const d = JSON.parse(e.data);
+    const name = title ? '「' + title + '」' : '任务';
+    // status 事件只带状态，不带完整快照：拿最后一份运行中快照收尾，
+    // 否则横幅会永远停在「正在执行」，任务卡片的步骤也还挂着「运行中」。
+    const finalSnap = finalizeOpSnap(opLiveSnap, d.status, d.error);
+    if (title) finalSnap.title = title;
+    renderJob(finalSnap, false);
+    setOpsBusy(false);
+    if (d.status === 'failed') {
+      // 失败时把原始输出摆到面前比什么都强，所以指向日志而不是任务面板
+      report('opNotes', 'critical', name + '失败：' + (d.error || ''), 'logs', 'job');
+      if (d.errorCode === 'SCHEMA_DESTRUCTIVE') offerDestructiveRetry();
+    } else if (d.status === 'succeeded') {
+      report('opNotes', 'good', name + '已完成。', 'job', 'job');
+    } else if (d.status === 'cancelled') {
+      report('opNotes', 'info', name + '已取消。', 'job', 'job');
+    }
+    closeJobStream();
+  });
+  jobStream.onerror = () => { jobStream?.close(); jobStream = null; };
+}
+async function refreshJobs() {
+  try {
+    const j = await api('/api/jobs');
+    if (j.current) {
+      setOpsBusy(true);
+      renderJob(j.current, false);
+    } else {
+      // 本地锁只在没有 POST 在途时才放——否则「点下去到 POST 返回」这段
+      // 空窗里会被这里的轮询解开，按钮又变得可点。
+      if (!opPending) setOpsBusy(false);
+      $('btnCancelJob').disabled = true;
+      // 任务刚结束：补画终态，否则任务卡片会停在最后一份运行中快照上。
+      if (j.lastFinished && !$('jobCard').classList.contains('hidden')) {
+        renderJob(j.lastFinished, false);
+      }
+    }
+  } catch {}
+}
+/** 刷新页面后把「正在进行 / 刚刚结束」的任务面板重新画出来。 */
+async function bootstrapJob() {
+  try {
+    const j = await api('/api/jobs');
+    const snap = j.current || j.lastFinished;
+    if (!snap) return;
+    if (snap.status === 'running') {
+      $('jobCard').classList.remove('hidden');
+      setOpsBusy(true);
+      watchJob(snap.id);
+    } else {
+      renderJob(snap, true);
+      // 刷新前失败在「等确认丢数据变更」上：把重放所需的上下文补回来
+      if (snap.status === 'failed' && snap.errorCode === 'SCHEMA_DESTRUCTIVE' && (snap.kind === 'setup' || snap.kind === 'rebuild')) {
+        lastOp = { name: snap.kind, body: { dbMode: 'portable' }, label: snap.kind === 'setup' ? '首次部署' : '重新部署' };
+        offerDestructiveRetry();
+      }
+    }
+  } catch {}
+}
+let lastOp = null;   // 供「确认执行丢数据变更」原样重放
+
+/**
+ * 表结构变更里出现 DROP / TRUNCATE 这类语句时，面板会停下来等确认。
+ * 变更计划已经打在任务日志里，这里给一个明确的执行入口——
+ * 默认路径永远不会自动接受丢数据语句。
+ */
+function offerDestructiveRetry() {
+  if (!lastOp) return;
+  const box = $('opNotes');
+  const btn = document.createElement('button');
+  btn.className = 'danger';
+  btn.type = 'button';
+  btn.textContent = '我已核对上面的变更计划，确认执行';
+  btn.onclick = () => {
+    if (!confirm('确认执行？其中的 DROP / TRUNCATE 语句会永久删除数据，且无法撤销。')) return;
+    runOp(lastOp.name, Object.assign({}, lastOp.body, { confirmDestructive: true }), lastOp.label + '（已确认可丢数据）');
+  };
+  box.appendChild(btn);
+}
+
+async function runOp(name, body, label) {
+  setNotes($('opNotes'), []);
+  lastOp = { name, body: body || {}, label };
+
+  // 点下去就锁、就显示进度：不等 POST 返回，也不等 2 秒一次的 /api/state。
+  // 按钮在视觉上立刻变灰，连点的人不会再撞出一串 409。
+  opPending = true;
+  setOpsBusy(true);
+  beginOpLive(label);
+
+  // 先弹一条「已受理」。它的 key 是 'job'，所以任务跑完后会被就地改写成
+  // 成功/失败——用户看到的是同一条提示在更新，而不是莫名其妙多出一条。
+  toast('info', '正在执行：' + label + '（完成前操作按钮已锁定）', 'job', 'job');
+  try {
+    const r = await api('/api/ops/' + name, { method: 'POST', body: body || {} });
+    opPending = false;
+    if (r.jobId) {
+      $('jobCard').classList.remove('hidden');
+      $('jobLog').textContent = '正在启动：' + label + '…';
+      $('jobLog').dataset.placeholder = '';
+      setOpsBusy(true); // 任务已创建，锁保持到终态
+      watchJob(r.jobId);
+    } else {
+      // 同步操作：调完就已经有结论了，没有任务可等。
+      // 「打开网站」这类会回一个 URL，把它说出来比「完成」有用得多。
+      setOpsBusy(false);
+      finishOpLive(label);
+      report('opNotes', 'good', r.url ? `${label}：${r.url}` : label + ' 完成。', 'ops', 'job');
+      poll();
+    }
+  } catch (e) {
+    opPending = false;
+    setOpsBusy(false);
+    const extra = e.status === 409 ? '（已有另一个任务在运行，请等它结束或先取消）' : '';
+    failOpLive(label, e.message + extra);
+    report('opNotes', 'critical', label + ' 失败：' + e.message + extra, e.status === 409 ? 'job' : 'logs', 'job');
+  }
+}
+
+/* ------------------------------ 日志 ------------------------------ */
+let logStream = null;
+async function loadLog() {
+  const name = $('logFile').value;
+  try {
+    const r = await api('/api/logs?file=' + encodeURIComponent(name) + '&lines=400');
+    $('logView').textContent = r.lines.length ? r.lines.map((l) => l.text).join('\n') : '（无内容）';
+    $('logMeta').textContent = fmtBytes(r.size) + (r.truncated ? ' · 仅显示末尾' : '');
+    $('logView').scrollTop = $('logView').scrollHeight;
+  } catch (e) {
+    $('logView').textContent = '读取失败：' + e.message;
+  }
+}
+function restartLogStream() {
+  logStream?.close();
+  logStream = null;
+  loadLog();
+  if (!$('logFollow').checked) return;
+  const name = $('logFile').value;
+  logStream = new EventSource('/api/logs/stream?file=' + encodeURIComponent(name));
+  logStream.addEventListener('log', (e) => {
+    const d = JSON.parse(e.data);
+    const pre = $('logView');
+    if (pre.textContent === '（无内容）') pre.textContent = '';
+    const atBottom = pre.scrollHeight - pre.scrollTop < pre.clientHeight + 80;
+    for (const line of d.lines) {
+      const div = document.createElement('div');
+      div.textContent = line;
+      pre.appendChild(div);
+    }
+    while (pre.childNodes.length > 1500) pre.removeChild(pre.firstChild);
+    if (atBottom) pre.scrollTop = pre.scrollHeight;
+  });
+}
+
+/* ------------------------------ 体检 ------------------------------ */
+async function runHealth() {
+  setNotes($('opNotes'), [note('info', '正在体检…')]);
+  // 这里不指示去向：结果卡片这会儿还没画出来，指过去只是一片空白
+  toast('info', '正在体检…', null, 'health');
+  try {
+    const r = await api('/api/health');
+    const rows = [
+      ['应用进程', r.app.state === 'running' ? ['good', '运行中，PID ' + r.app.pid] : ['critical', r.app.state]],
+      ['HTTP 探针', r.app.probeOk ? ['good', 'HTTP ' + r.app.httpStatus + '（' + r.app.httpMs + 'ms）'] : ['critical', '无响应']],
+      ['数据库端口', r.db.tcpReachable ? ['good', '连通（' + r.db.tcpMs + 'ms）'] : ['critical', '不通']],
+      ['端到端深检', r.db.deep && r.db.deep.ok ? ['good', '通过：应用 → Drizzle → PostgreSQL → 数据表'] : ['critical', r.db.deep ? r.db.deep.verdict : '未检测']],
+      ['磁盘剩余', r.disk && r.disk.freeBytes > 4e9 ? ['good', fmtBytes(r.disk.freeBytes)] : ['warn', fmtBytes(r.disk && r.disk.freeBytes)]],
+      ['局域网地址', r.net.lanIp ? ['good', r.net.lanIp + '（' + r.net.lanIpSource + '）'] : ['warn', '未检测到']],
+    ];
+    const box = $('healthBody');
+    box.textContent = '';
+    for (const [k, [lvl, v]] of rows) box.appendChild(note(lvl, k + '：' + v));
+    for (const w of r.warnings) box.appendChild(note(w.code === 'NOT_BUILT' ? 'warn' : 'info', w.text));
+    if (r.errTail.length) {
+      const d = document.createElement('details');
+      d.innerHTML = '<summary>应用错误日志（末尾 20 行）</summary><pre class="log"></pre>';
+      d.querySelector('pre').textContent = r.errTail.join('\n');
+      box.appendChild(d);
+    }
+    if (r.pgTail.length && r.pgTail.some((l) => l.trim())) {
+      const d = document.createElement('details');
+      d.innerHTML = '<summary>PostgreSQL 日志（末尾 20 行）</summary><pre class="log"></pre>';
+      d.querySelector('pre').textContent = r.pgTail.join('\n');
+      box.appendChild(d);
+    }
+    $('healthCard').classList.remove('hidden');
+    const bad = rows.filter(([, [lvl]]) => lvl === 'critical').length;
+    report(
+      'opNotes',
+      bad ? 'critical' : 'good',
+      bad ? `体检完成：有 ${bad} 项不通。` : '体检完成：全部正常。',
+      'health',
+      'health'
+    );
+  } catch (e) {
+    report('opNotes', 'critical', '体检失败：' + e.message, 'health', 'health');
+  }
+}
+
+/* ------------------------------ 配置与环境变量 ------------------------------ */
+async function loadConfig() {
+  const c = await api('/api/config');
+  $('cfgAppPort').value = c.appPort;
+  $('cfgPgPort').value = c.pgPort;
+  $('cfgRegistry').value = c.registry || '';
+  $('cfgAutoOpen').checked = c.autoOpenBrowser;
+  $('cfgMirror').checked = c.mirror;
+  $('cfgRuntimeDir').textContent = c.runtimeDir;
+  $('cfgRepoDir').textContent = c.repoDir;
+}
+async function loadEnv(reveal) {
+  const r = await api('/api/env' + (reveal ? '?reveal=1' : ''));
+  const box = $('envBody');
+  box.textContent = '';
+  if (!r.exists) {
+    box.appendChild(note('warn', '还没有 .env 文件。完成一次「首次部署」后会自动生成。'));
+    return;
+  }
+  const t = document.createElement('table');
+  t.innerHTML = '<thead><tr><th style="width:30%">变量</th><th>值</th><th style="width:15%"></th></tr></thead><tbody></tbody>';
+  const tb = t.querySelector('tbody');
+  for (const e of r.entries) {
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td');
+    td1.className = 'k';
+    td1.textContent = e.key;
+    const td2 = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = e.secret && !reveal ? 'password' : 'text';
+    inp.value = e.value;
+    inp.dataset.key = e.key;
+    inp.className = 'mono';
+    td2.appendChild(inp);
+    const td3 = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.className = 'sm';
+    btn.type = 'button';
+    btn.textContent = '保存';
+    // 没点「显示密钥」时，输入框里放的是打码后的圆点串。原样点保存会把这串
+    // 圆点写回 .env，等于把密钥抹掉——而按钮反馈还是「已保存」，很难察觉。
+    // 值没被改过就直接拦住，改过（说明用户自己输入了新值）才放行。
+    const maskedShown = !reveal && e.secret && /^•/.test(e.value);
+    btn.onclick = async () => {
+      if (maskedShown && inp.value === e.value) {
+        report('cfgNotes', 'warn', `未保存 ${e.key}：这一行显示的是打码值，直接保存会把密钥覆盖成圆点。请点右上角「显示密钥」后再改。`, 'env', 'env');
+        return;
+      }
+      if (e.key === 'AUTH_SECRET' && !confirm('修改 AUTH_SECRET 会让所有人退出登录，确定继续吗？')) return;
+      try {
+        await api('/api/env', { method: 'PUT', body: { set: { [e.key]: inp.value } } });
+        btn.textContent = '已保存';
+        setTimeout(() => { btn.textContent = '保存'; }, 1500);
+        report('cfgNotes', 'good', `已写入 .env：${e.key}。改动需重启应用才生效。`, 'env', 'env');
+      } catch (err) {
+        report('cfgNotes', 'critical', `写入 .env 失败（${e.key}）：` + err.message, 'env', 'env');
+      }
+    };
+    td3.appendChild(btn);
+    tr.append(td1, td2, td3);
+    tb.appendChild(tr);
+  }
+  box.appendChild(t);
+  const p = document.createElement('div');
+  p.className = 'muted';
+  p.style.marginTop = '8px';
+  p.textContent = '文件位置：' + r.path;
+  box.appendChild(p);
+}
+
+/* ------------------------------ 主循环 ------------------------------ */
+let panelOffline = false;
+async function poll() {
+  try {
+    render(await api('/api/state'));
+    if (panelOffline) {
+      panelOffline = false;
+      toast('good', '已重新连上面板。', 'ops', 'conn');
+    }
+  } catch (e) {
+    $('appPillText').textContent = '无法连接面板';
+    $('appPill').className = 'pill s-critical';
+    // 只在「刚断开」那一次提示。这个函数每 2 秒跑一遍，不加开关就会刷屏。
+    // 顺带说清一件事：面板没了不等于网站没了——这是最容易被误解的地方。
+    if (!panelOffline) {
+      panelOffline = true;
+      toast(
+        'critical',
+        '连不上面板进程了。网站与数据库不受影响；若面板确实已退出，到中枢里点「打开控制面板」即可（或双击 deploy\\start.cmd）。',
+        null,
+        'conn'
+      );
+    }
+  }
+}
+
+/**
+ * 面板还在应答吗？一直问到它不再应答为止，返回「探到了它退出」。
+ *
+ * 这是「面板已退出」这句话**唯一**的依据：不是定时器到点了，而是探不到对端了。
+ * 探到超时**不算**退出——认不出来的事就照实说认不出来。
+ */
+async function waitUntilPanelGone(timeoutMs) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 2500);
+    try {
+      await fetch('/api/state', { cache: 'no-store', signal: ctl.signal });
+      // 有应答 = 还活着
+    } catch (e) {
+      // 只有**网络层失败**才算退出。主动放弃（AbortError）不算——那多半只是面板正忙着
+      // 停数据库、慢了一拍，这时候说它退了正好是我们要消灭的那种错。
+      if (e && e.name !== 'AbortError') return true;
+    } finally {
+      clearTimeout(timer);
+    }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return false;
+}
+
+/**
+ * 「全部停止并退出面板」。
+ *
+ * 这条路径从前的写法是：发一个请求，然后 `setTimeout(…, 6000)` 把整页换成
+ * 「面板已退出 / 网站与数据库已停止」。那是一句**承诺**，不是一次观察——面板那边卡住的
+ * 时候（喂给 stopPortable 的手写 job 空壳会让停止动作永不 settle），页面照样宣布胜利，
+ * 于是就成了「页面说退了、中枢说在跑」。
+ *
+ * 现在两件事都要**看到**才敢说：停止的真实结果从响应里拿（后端改成做完才回），
+ * 面板的消失靠探。
+ */
+async function shutdownPanel() {
+  const app = document.createElement('div');
+  app.className = 'wrap';
+  app.innerHTML =
+    '<h1>正在停止…</h1>' +
+    '<div class="notes" id="sdNotes"></div>' +
+    '<p class="muted">正在依次停止网站与数据库，然后退出面板。' +
+    '面板真的退出之前，这个页面不会说「已退出」。</p>' +
+    '<p class="muted" id="sdClock"></p>';
+  document.body.replaceChildren(app);
+  // 这块提示条是**动态建**的，所以走 setNotes(元素) 而不是 report(宿主 id)。
+  const notesHost = app.querySelector('#sdNotes');
+  const clock = app.querySelector('#sdClock');
+  setNotes(notesHost, [note('info', '正在停止网站与数据库…')]);
+
+  const t0 = Date.now();
+  const tick = setInterval(() => {
+    clock.textContent = '已用 ' + Math.floor((Date.now() - t0) / 1000) + ' 秒';
+  }, 500);
+
+  // 一边等结果，一边每秒看一眼 /api/state，把「停到哪一步了」显示出来。面板是单线程的，
+  // 这个 GET 很便宜；而它给出的状态是从磁盘算出来的，不是猜的。
+  const watch = setInterval(async () => {
+    try {
+      const s = await api('/api/state');
+      const appLabel = (APP_STATE[s.app.state] || APP_STATE.unknown)[1];
+      setNotes(notesHost, [
+        note(s.app.state === 'running' ? 'warn' : 'good', '网站：' + appLabel),
+        note(s.db.tcpReachable ? 'warn' : 'good', '数据库：' + (s.db.tcpReachable ? '仍在运行' : '已停止')),
+        note('info', '正在停止网站与数据库…'),
+      ]);
+    } catch {}
+  }, 1000);
+
+  let outcome = null;
+  let reqError = null;
+  try {
+    outcome = await api('/api/ops/shutdown', { method: 'POST', body: { alsoStopApp: true, alsoStopDb: true } });
+  } catch (e) {
+    reqError = e;
+  }
+  clearInterval(watch);
+
+  // 结果到手了（或请求断在半路），但「面板退出」还得**探到**才算数。
+  const gone = await waitUntilPanelGone(15000);
+  clearInterval(tick);
+
+  const again = '要重新开始，到中枢里点「打开控制面板」（或双击 deploy\\start.cmd）。';
+  const title = document.createElement('h1');
+  const notes = [];
+
+  if (!gone) {
+    // 探不到退出。绝不说「已退出」——这正是这次要修的那个谎。
+    title.textContent = '面板仍在运行';
+    notes.push(
+      note('critical', '停止动作已经结束（或已超时），但面板进程仍然在应答，所以它并没有退出。')
+    );
+    notes.push(note('info', '到中枢里看一下这个项目的状态；必要时用中枢卡片上的「停止」，' +
+      '它会先发一次优雅停机请求，不生效才硬杀。'));
+  } else {
+    title.textContent = '面板已退出';
+    if (outcome && outcome.alreadyStopping) {
+      notes.push(note('info', '刚才已经有一个停止动作在跑了，这次点击被忽略。'));
+    }
+    if (outcome) {
+      if (outcome.stoppingApp) {
+        notes.push(note(outcome.stoppedApp ? 'good' : 'critical',
+          outcome.stoppedApp ? '网站已停止。' : '网站没能停止，原因见下。'));
+      }
+      if (outcome.stoppingDb) {
+        notes.push(note(outcome.stoppedDb ? 'good' : 'critical',
+          outcome.stoppedDb ? '数据库已停止。' : '数据库没能停止，原因见下。'));
+      }
+      for (const msg of outcome.errors || []) notes.push(note('critical', msg));
+      if (!(outcome.errors || []).length) {
+        notes.push(note('good', '可以关闭这个页面了。'));
+      } else {
+        notes.push(note('warn', '停止动作有一步没成功。到中枢里核对一下，必要时手工收掉。'));
+      }
+    } else {
+      // 请求断在半路（面板可能在硬超时那条路上先行退出了）。不知道就说不知道。
+      notes.push(note('warn', '面板确实退出了，但停止结果没能确认：请求在拿到结果前就断了'
+        + (reqError ? '（' + reqError.message + '）' : '') + '。'));
+      notes.push(note('info', '到中枢里核对一下网站与数据库的状态。'));
+    }
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'wrap';
+  wrap.appendChild(title);
+  const bodyHost = document.createElement('div');
+  bodyHost.className = 'notes';
+  setNotes(bodyHost, notes);
+  wrap.appendChild(bodyHost);
+  const tail = document.createElement('p');
+  tail.className = 'muted';
+  tail.textContent = again;
+  wrap.appendChild(tail);
+  document.body.replaceChildren(wrap);
+}
+
+function bind() {
+  $('themeBtn').onclick = () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('ac-theme', next); } catch {}
+  };
+  $('btnSetup').onclick = () => {
+    if (!confirm('「首次部署」会：把源码复制到运行目录、安装依赖、准备数据库、建表、构建前端，然后启动。\n\n过程中不会修改原仓库里的任何文件。\n\n继续吗？')) return;
+    runOp('setup', { dbMode: 'portable' }, '首次部署');
+  };
+  $('btnStart').onclick = () => runOp('start', {}, '启动应用');
+  $('btnStop').onclick = () => runOp('stop', {}, '停止应用');
+  $('btnRestart').onclick = () => runOp('restart', {}, '重启应用');
+  $('btnRebuild').onclick = () => {
+    if (!confirm('重新部署会同步最新源码并重建前端，完成后自动重启。数据库不受影响。继续吗？')) return;
+    runOp('rebuild', {}, '重新部署');
+  };
+  $('btnSync').onclick = () => runOp('sync', {}, '同步源码');
+  $('btnHealth').onclick = runHealth;
+  $('btnOpen').onclick = () => runOp('open', { target: 'app' }, '打开网站');
+  $('btnDbStart').onclick = () => runOp('db-start', {}, '启动数据库');
+  $('btnDbStop').onclick = () => runOp('db-stop', {}, '停止数据库');
+  $('btnStopAll').onclick = () => {
+    if (!confirm('将依次停止网站、数据库，然后退出面板。\n\n面板不常驻，停止后要重新开始需再次双击 deploy\\start.cmd。\n\n确定吗？')) return;
+    // 停止顺序由面板负责（先应用后数据库）。这里不再单独发 stop，
+    // 否则会和面板自己的停止动作并发，两边都去 taskkill 同一个 PID。
+    // 详细流程与「为什么不能定时宣布退出」都在 shutdownPanel 的注释里。
+    shutdownPanel();
+  };
+  $('btnCancelJob').onclick = async () => {
+    try {
+      const j = await api('/api/jobs');
+      if (!j.running) {
+        toast('info', '当前没有正在运行的任务。', 'job', 'job');
+        return;
+      }
+      await api('/api/jobs/' + j.running.id + '/cancel', { method: 'POST', body: {} });
+      toast('info', '已发出取消请求，正在终止子进程…', 'job', 'job');
+    } catch (e) {
+      toast('critical', '取消失败：' + e.message, 'job', 'job');
+    }
+  };
+  $('btnLogRefresh').onclick = loadLog;
+  $('logFile').onchange = restartLogStream;
+  $('logFollow').onchange = restartLogStream;
+  $('btnReveal').onclick = (e) => {
+    const on = e.target.dataset.on === '1';
+    e.target.dataset.on = on ? '0' : '1';
+    e.target.textContent = on ? '显示密钥' : '隐藏密钥';
+    loadEnv(!on);
+  };
+  $('btnQuickRegistry').onclick = () => {
+    $('cfgRegistry').value = 'https://registry.npmmirror.com';
+    // 这一下只填了输入框、并没有落盘，所以要明确说「还差一步」，
+    // 否则很容易以为已经切过去了
+    toast('info', '已填入国内源地址。还需要点「保存配置」才会生效。', 'settings', 'cfg');
+  };
+  $('btnSaveCfg').onclick = async () => {
+    try {
+      const r = await api('/api/config', {
+        method: 'PUT',
+        body: {
+          appPort: Number($('cfgAppPort').value),
+          pgPort: Number($('cfgPgPort').value),
+          registry: $('cfgRegistry').value.trim(),
+          autoOpenBrowser: $('cfgAutoOpen').checked,
+          mirror: $('cfgMirror').checked,
+        },
+      });
+      const msg = r.restartRequired && r.restartRequired.length
+        ? '配置已保存。以下改动需重启应用生效：' + r.restartRequired.join('、')
+        : '配置已保存。';
+      report('cfgNotes', 'good', msg, 'settings', 'cfg');
+      loadConfig();
+    } catch (e) {
+      report('cfgNotes', 'critical', '配置保存失败：' + e.message, 'settings', 'cfg');
+    }
+  };
+  $('cronHint').onclick = (e) => {
+    e.preventDefault();
+    if (!confirm('提醒扫描会调用 /api/cron/reminders，可能向真实的飞书用户发送消息。\n\n确定现在触发一次吗？')) return;
+    runOp('cron-reminders', {}, '触发提醒扫描');
+  };
+}
+
+try {
+  const saved = localStorage.getItem('ac-theme');
+  if (saved) document.documentElement.dataset.theme = saved;
+  else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark';
+} catch {}
+
+bind();
+poll();
+bootstrapJob();
+setInterval(poll, 2000);
+setInterval(() => { if (!$('jobCard').classList.contains('hidden')) refreshJobs(); }, 3000);
+restartLogStream();
+loadConfig().catch(() => {});
+loadEnv(false).catch((e) => { $('envBody').textContent = '读取失败：' + e.message; });
+</script>
+</body>
+</html>

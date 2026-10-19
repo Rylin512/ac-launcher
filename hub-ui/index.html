@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgileCampus 中枢</title>
+<style>
+/* ---------- 设计令牌（与面板页同一套，两个页面看起来该像一家人） ---------- */
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --plane:        #f9f9f7;
+  --surface:      #fcfcfb;
+  --ink:          #0b0b0b;
+  --ink-2:        #52514e;
+  --ink-muted:    #898781;
+  --hairline:     rgba(11,11,11,0.10);
+  --grid:         #e1e0d9;
+  --accent:       #2a78d6;
+  --accent-soft:  #cde2fb;
+  --good:         #0ca30c;
+  --warning:      #fab219;
+  --serious:      #ec835a;
+  --critical:     #d03b3b;
+  --shadow:       0 1px 2px rgba(11,11,11,0.05);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane:        #0d0d0d;
+  --surface:      #1a1a19;
+  --ink:          #ffffff;
+  --ink-2:        #c3c2b7;
+  --ink-muted:    #898781;
+  --hairline:     rgba(255,255,255,0.10);
+  --grid:         #2c2c2a;
+  --accent:       #3987e5;
+  --accent-soft:  #184f95;
+  --shadow:       0 1px 2px rgba(0,0,0,0.4);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--plane);
+  color: var(--ink);
+  font: 14px/1.6 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 20px 20px 48px; }
+
+/* ---------- 顶栏 ---------- */
+header.top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 16px 0 18px; }
+.brand { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+.brand small { font-weight: 400; color: var(--ink-muted); margin-left: 8px; font-size: 12px; }
+.spacer { flex: 1; }
+.pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 11px; border-radius: 999px;
+  border: 1px solid var(--hairline); background: var(--surface);
+  font-size: 13px; white-space: nowrap;
+}
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-muted); flex: none; }
+.s-good    .dot { background: var(--good); }
+.s-warning .dot { background: var(--warning); }
+.s-serious .dot { background: var(--serious); }
+.s-critical .dot { background: var(--critical); }
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: 10px; padding: 16px 18px; box-shadow: var(--shadow);
+  margin-top: 14px;
+}
+.card > h2 {
+  margin: 0 0 14px; font-size: 13px; font-weight: 650;
+  color: var(--ink-2); display: flex; align-items: center; gap: 8px;
+}
+.grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin-top: 14px; }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 3px 0; }
+.row .k { color: var(--ink-2); font-size: 13px; flex: none; }
+.row .v { text-align: right; word-break: break-all; }
+.mono { font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-muted); }
+
+/* ---------- 按钮 ---------- */
+.actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 12px; }
+button {
+  font: inherit; font-size: 13px; padding: 8px 15px; cursor: pointer;
+  border-radius: 8px; border: 1px solid var(--hairline);
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow);
+  transition: border-color .15s, background .15s;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+button.danger { color: var(--critical); border-color: var(--critical); }
+button.danger:hover:not(:disabled) { background: var(--critical); color: #fff; }
+button.sm { padding: 5px 11px; font-size: 12px; }
+
+/* ---------- 提示条 ---------- */
+.notes { margin-top: 14px; display: grid; gap: 8px; }
+.note {
+  display: flex; gap: 9px; align-items: flex-start; font-size: 13px;
+  padding: 9px 12px; border-radius: 8px; border: 1px solid var(--hairline);
+  background: var(--surface);
+}
+.note .ic { flex: none; font-weight: 700; }
+.n-warn     { border-left: 3px solid var(--warning); }
+.n-warn .ic { color: var(--warning); }
+.n-critical { border-left: 3px solid var(--critical); }
+.n-critical .ic { color: var(--critical); }
+.n-info     { border-left: 3px solid var(--ink-muted); }
+.n-info .ic { color: var(--ink-muted); }
+.n-good     { border-left: 3px solid var(--good); }
+.n-good .ic { color: var(--good); }
+.note.sm { font-size: 12px; padding: 6px 10px; }
+
+/* ---------- 项目卡 ---------- */
+.proj { display: flex; flex-direction: column; }
+.proj .head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 4px; }
+.proj .title { font-size: 15px; font-weight: 650; }
+.proj .sub { font-size: 12px; color: var(--ink-muted); margin-bottom: 10px; overflow-wrap: anywhere; }
+.proj .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag {
+  font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--hairline); color: var(--ink-muted);
+}
+.tag.on   { color: var(--good);     border-color: var(--good); }
+.tag.off  { color: var(--ink-muted); }
+.tag.warn { color: var(--warning);  border-color: var(--warning); }
+.tag.bad  { color: var(--critical); border-color: var(--critical); }
+.proj .spacer2 { flex: 1; }
+
+/* ---------- 顶部浮窗（与面板页同一套交互） ---------- */
+.toasts {
+  position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+  z-index: 60; width: min(560px, calc(100vw - 28px));
+  padding: 14px 0 0; display: grid; gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 11px 13px; border-radius: 10px;
+  border: 1px solid var(--hairline); border-left-width: 3px;
+  background: var(--surface); box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+  font-size: 13px; line-height: 1.6;
+  animation: toast-in .18s ease-out;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+.toast.out { opacity: 0; transform: translateY(-10px); transition: opacity .2s, transform .2s; }
+.toast .ic { flex: none; width: 16px; text-align: center; font-weight: 700; }
+.toast .body { flex: 1; min-width: 0; }
+.toast .msg { overflow-wrap: anywhere; }
+.toast .where {
+  display: inline-block; margin-top: 5px; padding: 0; border: 0;
+  background: none; box-shadow: none; height: auto;
+  font: inherit; font-size: 12px; color: var(--accent);
+  text-decoration: underline; cursor: pointer;
+}
+.toast .where:hover:not(:disabled) { border-color: transparent; filter: brightness(1.15); }
+.toast .x {
+  flex: none; padding: 0 2px; border: 0; background: none; box-shadow: none;
+  color: var(--ink-muted); font-size: 14px; line-height: 1.2; cursor: pointer;
+}
+.toast .x:hover:not(:disabled) { border-color: transparent; color: var(--ink); }
+.toast.t-good     { border-left-color: var(--good); }      .toast.t-good .ic     { color: var(--good); }
+.toast.t-info     { border-left-color: var(--ink-muted); } .toast.t-info .ic     { color: var(--ink-muted); }
+.toast.t-warn     { border-left-color: var(--warning); }   .toast.t-warn .ic     { color: var(--warning); }
+.toast.t-critical { border-left-color: var(--critical); }  .toast.t-critical .ic { color: var(--critical); }
+
+@keyframes flash-outline {
+  0%, 100% { outline: 2px solid transparent; outline-offset: 3px; }
+  18%, 72% { outline: 2px solid var(--accent); outline-offset: 3px; }
+}
+.flash { animation: flash-outline 1.3s ease; }
+
+/* ---------- 表单与日志 ---------- */
+.toolbar { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+input[type=text] {
+  font: inherit; font-size: 13px; padding: 8px 11px; border-radius: 8px;
+  border: 1px solid var(--hairline); background: var(--plane); color: var(--ink);
+}
+input[type=text].wide { flex: 1; min-width: 260px; }
+pre.log {
+  margin: 0; padding: 12px 14px; border-radius: 8px;
+  background: var(--plane); border: 1px solid var(--hairline);
+  font: 12px/1.65 ui-monospace, SFMono-Regular, Consolas, "Cascadia Mono", monospace;
+  color: var(--ink-2); max-height: 340px; overflow: auto; white-space: pre-wrap; word-break: break-all;
+}
+pre.log .e { color: var(--critical); }
+
+/* ---------- 二次确认 ---------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(11,11,11,0.45);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 16px; overflow: auto;
+}
+.modal {
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: 12px; box-shadow: 0 12px 44px rgba(0,0,0,0.28);
+  width: 100%; max-width: 560px; padding: 20px 22px;
+}
+.modal > h2 { margin: 0 0 6px; font-size: 15px; font-weight: 650; color: var(--critical); }
+.modal .sub { font-size: 13px; color: var(--ink-2); line-height: 1.75; }
+.modal .field { margin-top: 16px; }
+.modal .field > .k { display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.modal input[type=text].phrase {
+  width: 100%; font: inherit; font-size: 14px; padding: 9px 12px;
+  border-radius: 8px; border: 1px solid var(--hairline);
+  background: var(--plane); color: var(--ink);
+}
+.modal .foot { display: flex; gap: 9px; justify-content: flex-end; margin-top: 18px; }
+/* 端口三件套：可编辑的建议值。故意用 type=text + inputmode，好复用上面那条
+   input[type=text] 的样式，也免得数字框的加减箭头被误当成「只能微调」。 */
+.modal .ports { display: flex; gap: 10px; margin-top: 6px; }
+.modal .ports label { flex: 1; font-size: 12px; color: var(--ink-2); }
+.modal .ports input {
+  width: 100%; margin-top: 4px; font: inherit; font-size: 14px; padding: 8px 10px;
+  border-radius: 8px; border: 1px solid var(--hairline); background: var(--plane); color: var(--ink);
+}
+.modal .ports input.bad { border-color: var(--critical); }
+.modal .ports .was { color: var(--ink-muted); font-size: 11px; }
+
+footer { margin-top: 26px; font-size: 12px; color: var(--ink-muted); line-height: 1.9; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<!-- 顶部浮窗容器。固定定位，不占文档流，所以放在最前面也不影响布局。 -->
+<div class="toasts" id="toasts"></div>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">AgileCampus 中枢<small>多项目监视</small></div>
+    <span class="spacer"></span>
+    <span id="hubPill" class="pill s-serious"><span class="dot"></span><span id="hubPillText">连接中…</span></span>
+    <button class="sm" id="themeBtn" type="button">切换主题</button>
+  </header>
+
+  <div class="notes" id="notes"></div>
+
+  <!-- 添加项目。输入框必须留在静态标记里：列表每 2 秒重绘一次，
+       若把输入框也交给渲染函数，正在输入的路径会被抹掉。 -->
+  <div class="card" id="addCard">
+    <h2>添加项目</h2>
+    <div class="toolbar">
+      <input type="text" class="wide" id="addRepoDir" placeholder="项目仓库目录（含 package.json 或 .git），例如 C:\Users\me\Desktop\agilecampus">
+      <input type="text" id="addName" placeholder="显示名，可留空">
+      <button class="primary" id="addBtn" type="button">添加并分配端口</button>
+    </div>
+    <div class="notes" id="addNotes"></div>
+  </div>
+
+  <div class="grid4" id="projectList"></div>
+  <div class="notes" id="listNotes"></div>
+
+  <div class="card" id="opCard">
+    <h2>操作反馈</h2>
+    <div class="notes" id="opNotes"></div>
+  </div>
+
+  <div class="card" id="detailCard">
+    <h2>项目详情</h2>
+    <div class="notes" id="detailNotes"></div>
+    <div id="detailBody" class="muted" style="font-size:13px">点任意项目卡上的「详情」看它的路径、端口与就绪情况。</div>
+  </div>
+
+  <div class="card" id="logCard">
+    <h2>日志</h2>
+    <div class="toolbar">
+      <span class="muted" style="font-size:13px" id="logLabel">尚未选择项目</span>
+      <span class="spacer"></span>
+      <button class="sm" id="logRefresh" type="button">刷新</button>
+    </div>
+    <pre class="log" id="logView">—</pre>
+  </div>
+
+  <footer>
+    中枢只做列表、监视、打开与停止。<b>停止面板不会停止应用与数据库</b>——
+    它们是 detached 起来的独立进程，关掉控制台不影响它们继续提供服务。<br>
+    部署、改配置、检修数据库这些事，请在中枢里打开该项目的控制面板去做。
+  </footer>
+</div>
+
+<script>
+'use strict';
+const TOKEN = '__AC_TOKEN__';
+const HUB_PORT = '__AC_HUB_PORT__';
+const $ = (id) => document.getElementById(id);
+
+/* ------------------------------ 主题 ------------------------------ */
+(function initTheme() {
+  const saved = localStorage.getItem('ac-theme');
+  if (saved) document.documentElement.dataset.theme = saved;
+  $('themeBtn').onclick = () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem('ac-theme', next);
+  };
+})();
+
+/* ------------------------------ 请求 ------------------------------ */
+async function api(path, { method = 'GET', body = null } = {}) {
+  const headers = { 'x-ac-token': TOKEN };
+  if (body !== null) headers['content-type'] = 'application/json';
+  const res = await fetch(path, { method, headers, body: body === null ? undefined : JSON.stringify(body) });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+  if (!res.ok) {
+    const msg = data && data.error ? data.error.message : (text || ('HTTP ' + res.status));
+    const err = new Error(msg);
+    err.status = res.status;
+    err.code = data && data.error ? data.error.code : null;
+    throw err;
+  }
+  return data;
+}
+
+/* ------------------------------ 格式化 ------------------------------ */
+const fmtDur = (s) => {
+  if (s === null || s === undefined) return '—';
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  if (d) return d + ' 天 ' + h + ' 小时';
+  if (h) return h + ' 小时 ' + m + ' 分';
+  if (m) return m + ' 分 ' + Math.floor(s % 60) + ' 秒';
+  return Math.floor(s) + ' 秒';
+};
+const fmtTime = (ms) => ms ? new Date(ms).toLocaleString('zh-CN', { hour12: false }) : '—';
+
+/* 状态一律「图标 + 文字」，绝不只靠颜色表意 */
+function note(level, text) {
+  // 正文必须是非空字符串：一个只印着图标的小空框看起来像「没什么要紧的」，
+  // 而它其实吞掉了一条本该有内容的提示。
+  if (typeof text !== 'string' || !text) {
+    level = 'warn';
+    text = '（内部错误：这条提示没有正文。多半是 note() / setNotes() 的调用方式写错了。）';
+  }
+  const ic = { good: '✓', info: 'i', warn: '!', critical: '✕' }[level] || 'i';
+  const d = document.createElement('div');
+  d.className = 'note n-' + level;
+  d.innerHTML = '<span class="ic"></span><span></span>';
+  d.querySelector('.ic').textContent = ic;
+  d.querySelector('span:last-child').textContent = text;
+  return d;
+}
+/** 往 host 里铺提示条。既认现成的 .note 元素，也认 { level, text } 描述。 */
+function setNotes(host, list) {
+  host.textContent = '';
+  for (const n of list) host.appendChild(n instanceof Node ? n : note(n.level, n.text));
+}
+
+/* ------------------------------ 顶部浮窗 ------------------------------ */
+const TOAST_ICON = { good: '✓', info: 'i', warn: '!', critical: '✕' };
+const TOAST_MS = { good: 4000, info: 4200, warn: 6500, critical: 9000 };
+
+/** 结果落在哪儿。左边是给人看的名字，右边是要滚过去的元素 id。 */
+const WHERE = {
+  projects: ['项目列表', 'projectList'],
+  add:      ['添加项目', 'addRepoDir'],
+  ops:      ['操作反馈', 'opNotes'],
+  detail:   ['项目详情', 'detailCard'],
+  logs:     ['日志', 'logView'],
+};
+
+/** 同一个 key 的浮窗只有一个，后来的就地改写而不是再堆一条。 */
+function findToast(key) {
+  if (!key) return null;
+  for (const el of $('toasts').children) if (el.dataset.key === key) return el;
+  return null;
+}
+function dismissToast(el) {
+  if (!el || el.dataset.gone === '1') return;
+  el.dataset.gone = '1';
+  clearTimeout(Number(el.dataset.timer));
+  el.classList.add('out');
+  setTimeout(() => {
+    if (el.dataset.gone === '1' && el.classList.contains('out')) el.remove();
+  }, 220);
+}
+function armToast(el) {
+  clearTimeout(Number(el.dataset.timer));
+  const level = (el.className.match(/t-(\w+)/) || [])[1];
+  el.dataset.timer = String(setTimeout(() => dismissToast(el), TOAST_MS[level] || 4200));
+}
+/** 滚到目标区域并闪一下边框——回答「你说的那个面板在哪儿」。 */
+function goTo(id) {
+  const el = $(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.remove('flash');
+  void el.offsetWidth; // 强制重排，让同一个动画能再次触发
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1400);
+}
+function toast(level, text, where, key) {
+  const host = $('toasts');
+  let el = findToast(key);
+  if (!el) {
+    el = document.createElement('div');
+    el.dataset.key = key || '';
+    el.innerHTML = '<span class="ic"></span><div class="body"><div class="msg"></div></div>'
+      + '<button type="button" class="x" title="关闭">✕</button>';
+    el.querySelector('.x').onclick = () => dismissToast(el);
+    el.addEventListener('mouseenter', () => clearTimeout(Number(el.dataset.timer)));
+    el.addEventListener('mouseleave', () => armToast(el));
+    host.appendChild(el);
+  }
+  el.className = 'toast t-' + level;
+  el.dataset.gone = '';
+  el.querySelector('.ic').textContent = TOAST_ICON[level] || 'i';
+  el.querySelector('.msg').textContent = text;
+
+  const body = el.querySelector('.body');
+  for (const old of body.querySelectorAll('.where')) old.remove();
+  const target = where && WHERE[where];
+  if (target) {
+    const [label, id] = target;
+    const go = document.createElement('button');
+    go.type = 'button';
+    go.className = 'where';
+    go.textContent = '状态见「' + label + '」 →';
+    go.onclick = () => goTo(id);
+    body.appendChild(go);
+  }
+  armToast(el);
+  while (host.childElementCount > 4) {
+    const victim = [...host.children].find((x) => x !== el && x.dataset.gone !== '1');
+    if (!victim) break;
+    dismissToast(victim);
+  }
+  return el;
+}
+/** 一次性写好「就地留痕」和「顶部浮窗」。两处说的永远是同一件事。 */
+function report(hostId, level, text, where, key) {
+  setNotes($(hostId), [note(level, text)]);
+  toast(level, text, where, key);
+}
+
+/* ------------------------------ 渲染 ------------------------------ */
+/* 状态 → 『文字 + 类名』。类名只在这张表里出现一次，好过让每个调用点自己拼。 */
+const APP_STATE = {
+  running:   ['运行中', 'on'],
+  unhealthy: ['进程在但端口未就绪', 'warn'],
+  orphan:    ['端口被外部进程占用', 'warn'],
+  stopped:   ['已停止', 'off'],
+  unknown:   ['状态未知', 'bad'],
+};
+const T = (text, cls) => '<span class="tag ' + cls + '">' + text + '</span>';
+
+function tagRow(p) {
+  const [appLabel, appCls] = APP_STATE[p.app.state] || APP_STATE.unknown;
+  const dbOn = p.db.state === 'running';
+  return '<div class="tags">'
+    + (p.panel.running ? T('面板：运行中 :' + p.panel.port, 'on') : T('面板：未打开', 'off'))
+    + T('应用：' + appLabel, appCls)
+    + T('数据库：' + (dbOn ? '运行中 :' + p.db.port : '未运行'), dbOn ? 'on' : 'off')
+    + T('仓库', p.ready.repo ? 'on' : 'bad')
+    + T('依赖', p.ready.deps ? 'on' : 'off')
+    + T('.env', p.ready.env ? 'on' : 'off')
+    + T('产物', p.ready.built ? 'on' : 'off')
+    + '</div>';
+}
+
+function projectCard(p) {
+  if (p.error) {
+    return '<div class="card proj"><div class="head"><span class="title">' + esc(p.name || p.slug) + '</span></div>'
+      + '<div class="sub">' + esc(p.slug) + '</div>'
+      + '<div class="notes"><div class="note n-critical"><span class="ic">✕</span><span>读取状态失败：' + esc(p.error) + '</span></div></div>'
+      + '<div class="actions"><button class="sm danger" data-act="forget" data-slug="' + esc(p.slug) + '">移出列表</button></div></div>';
+  }
+  const problems = p.problems.length
+    ? '<div class="notes">' + p.problems.map((x) =>
+        '<div class="note n-' + (x.level === 'fail' ? 'critical' : x.level) + ' sm"><span class="ic">'
+        + ({ good: '✓', info: 'i', warn: '!', critical: '✕' }[x.level === 'fail' ? 'critical' : x.level] || 'i')
+        + '</span><span>' + esc(x.text) + '</span></div>').join('') + '</div>'
+    : '<div class="notes"><div class="note n-good sm"><span class="ic">✓</span><span>一切就绪。</span></div></div>';
+
+  return '<div class="card proj">'
+    + '<div class="head"><span class="title">' + esc(p.name) + '</span>'
+    + (p.legacy ? '<span class="tag">收编的旧部署</span>' : '')
+    // 重分配期间服务会依次变成「停着」，这张标签是唯一的线索：它不是坏了，是我们正在动它。
+    + (p.pending ? '<span class="tag">正在重新分配端口…</span>' : '') + '</div>'
+    + '<div class="sub">' + esc(p.repoDir) + '</div>'
+    + tagRow(p)
+    + '<div style="margin-top:10px">'
+    + row('应用地址', p.app.state === 'running'
+        ? '<a href="' + esc(p.app.urlLocal) + '" target="_blank">' + esc(p.app.urlLocal) + '</a>'
+          + (p.app.urlLan ? ' <span class="muted">/ ' + esc(p.app.urlLan) + '</span>' : '')
+        : '<span class="muted">未运行</span>')
+    + row('已运行', '<span class="mono">' + fmtDur(p.app.uptimeSec) + '</span>')
+    + row('运行目录', '<span class="mono">' + esc(p.runtimeDir) + '</span>')
+    + row('端口', '<span class="mono">面板 ' + p.ports.panel + ' · 应用 ' + p.ports.app + ' · 库 ' + p.ports.pg + '</span>')
+    + row('构建于', '<span class="mono">' + fmtTime(p.config.builtAt) + '</span>')
+    + '</div>'
+    + problems
+    + '<div class="actions">'
+    + '<button class="primary sm" data-act="open" data-slug="' + esc(p.slug) + '">打开控制面板</button>'
+    + '<button class="sm" data-act="stop" data-slug="' + esc(p.slug) + '"' + (p.panel.running ? '' : ' disabled') + '>只停面板</button>'
+    + '<button class="sm" data-act="realloc" data-slug="' + esc(p.slug) + '"' + (p.pending ? ' disabled title="正在进行端口重分配"' : '') + '>重新分配端口…</button>'
+    + '<button class="sm" data-act="detail" data-slug="' + esc(p.slug) + '">详情</button>'
+    + '<button class="sm" data-act="logs" data-slug="' + esc(p.slug) + '">日志</button>'
+    // 旧部署多一个「移出列表」：它的清盘是**按名字**做的细活（只删部署自己那些文件，
+    // 数据根留着），所以「我不管它了，但文件先留着」是个正当的选择，得有路走。
+    // 普通项目不加：它的运行目录整个都是自己的，一次清掉就完了；留一个「只摘条目、
+    // 留一整个运行目录在磁盘上没人管」的选项，只会多出一种说不清的状态。
+    + (p.legacy ? '<button class="sm" data-act="forget" data-slug="' + esc(p.slug) + '">移出列表</button>' : '')
+    // p.pending 时禁用：重分配正把服务停了又起，这时候清盘是在跟它抢同一个运行目录。
+    + '<button class="sm danger" data-act="purge" data-slug="' + esc(p.slug) + '"' + (p.pending ? ' disabled title="正在进行端口重分配"' : '') + '>删除并清盘…</button>'
+    + '</div></div>';
+}
+
+function row(k, v) {
+  return '<div class="row"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>';
+}
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** 列表最后渲染的那份数据的指纹，用来避免「什么都没变也整块重绘」，
+ *  否则鼠标悬停、键盘焦点每 2 秒被打断一次。 */
+let lastFingerprint = null;
+let lastState = null;
+
+function render(state) {
+  lastState = state;
+  const h = state.hub;
+  // 项目数在 state.projects 里，**不在** state.hub 里 —— hub 描述的是中枢进程自身
+  // （pid / port / 版本 / 运行时长 / 数据根），从来没有 projects 字段。
+  // 这里曾经写的是 h.projects.length：于是 render() 在**第 5 行**就抛
+  // undefined.length，后面画卡片的代码一行都没跑到 —— 整个中枢页永远只有一条
+  // 「解析中枢状态失败」，项目列表永远是空的。`|| []` 是给同一类错误兜底：
+  // 少了 projects 字段应该退化成「还没有登记任何项目」，而不是白屏。
+  const projects = Array.isArray(state.projects) ? state.projects : [];
+
+  $('hubPill').className = 'pill s-good';
+  $('hubPillText').textContent = '中枢 :' + h.port + ' · ' + projects.length + ' 个项目 · '
+    + (h.mode === 'sea' ? 'exe' : '源码') + ' · 已运行 ' + fmtDur(h.uptimeSec);
+
+  setNotes($('notes'), [
+    note('info', '数据根：' + h.runtimeDir + '　·　列表文件：' + h.registryFile),
+    note('info', '局域网地址：' + (state.net.lanIp || '未检测到')),
+  ]);
+
+  // 指纹只收「会改变卡片长相」的字段。原样把整个 state 序列化是没用的：它每
+  // 2 秒都会变（app.uptimeSec、时间戳），于是每 2 秒整块重绘一次，把鼠标悬停和
+  // 键盘焦点一起打断。已运行时长按 10 秒分桶，兼顾「看得见在走」和「别老重绘」。
+  const fingerprint = projects
+    .map((p) => (p.error
+      ? 'err|' + p.slug + '|' + p.error
+      : [p.slug, p.legacy, p.pending ? 'busy' : '', p.panel.running, p.panel.port, p.panel.staleLock,
+         // 卡片「端口」那行渲染的是 p.ports.*，而 p.ports.* 本身不在指纹里（p.panel.port
+         // 是另一回事）。今天两者同源所以看不出来，但「重新分配端口」正好让它变化——
+         // 不并进来，改完端口卡片会一直显示旧数字，看着像没生效。
+         p.ports.panel, p.ports.app, p.ports.pg,
+         p.app.state, p.app.port, Math.floor((p.app.uptimeSec || 0) / 10),
+         p.db.state, p.db.mode, p.ready.repo, p.ready.deps, p.ready.env, p.ready.built,
+         p.problems.map((x) => x.code).join('+'), p.config.builtAt].join('|')))
+    .join('\n');
+  if (fingerprint !== lastFingerprint) {
+    lastFingerprint = fingerprint;
+    $('projectList').innerHTML = projects.length
+      ? projects.map(projectCard).join('')
+      : '<div class="card proj"><div class="sub" style="margin:0">还没有登记任何项目。在上面填一个仓库目录，或在启动时用 --repo 指定。</div></div>';
+  }
+}
+
+/* ------------------------------ 操作 ------------------------------ */
+function findProject(slug) {
+  return (lastState && lastState.projects.find((p) => p.slug === slug)) || null;
+}
+
+/** 打开 / 停止 / 详情 / 日志 / 移出 / 清盘，全部走事件委托，免得每次重绘都重绑。 */
+async function onAction(act, slug) {
+  const p = findProject(slug);
+  try {
+    if (act === 'open') {
+      $('opNotes').textContent = '';
+      toast('info', '正在启动 ' + (p ? p.name : slug) + ' 的控制面板…', 'ops', 'open');
+      const r = await api('/api/projects/' + encodeURIComponent(slug) + '/open', { method: 'POST', body: {} });
+      // 新标签页由前端开，不由服务端开：这样即便是从另一台机器上访问中枢
+      // （如果能的话），打开的也是**访问者自己的**浏览器。
+      window.open(r.url, '_blank', 'noopener');
+      report('opNotes', 'good', (r.started ? '已拉起并打开' : '面板已在运行，直接打开') + '：' + r.url, 'ops', 'open');
+      return;
+    }
+    if (act === 'stop') {
+      const r = await api('/api/projects/' + encodeURIComponent(slug) + '/stop', { method: 'POST', body: {} });
+      if (!r.stopped) {
+        report('opNotes', 'warn', '没有可停止的面板（' + r.reason + '）。', 'ops', 'stop');
+        return;
+      }
+      report('opNotes', 'good', '面板已' + (r.graceful ? '优雅退出' : '强制终止')
+        + '（PID ' + r.pid + '）。应用与数据库未受影响，仍在运行。', 'ops', 'stop');
+      return;
+    }
+    if (act === 'logs') {
+      await loadLogs(slug, 'panel');
+      return;
+    }
+    if (act === 'detail') {
+      showDetail(p);
+      return;
+    }
+    if (act === 'forget') {
+      // body 不能省：护栏对 /api/ 下的**所有**非 GET 都要求 application/json，
+      // 而 api() 只在 body 非 null 时才带这个头。不带 → 415「请求必须使用
+      // application/json」，界面上就是点了「移出列表」什么都不发生（只有一条红字）。
+      const r = await api('/api/projects/' + encodeURIComponent(slug), { method: 'DELETE', body: {} });
+      report('opNotes', 'good', r.legacy
+        // 旧部署要特意说清「不会自己回来」：它的条目就是那次自动收编，而部署文件还在
+        // 原地——不说这句，用户下次启动看到它又躺在列表里，只会以为按钮坏了。
+        ? '已从列表移除 ' + r.removed + '（文件一个字节都没动）。它是收编来的旧部署，已记下「别再自动收编」，下次启动不会自己回来；要用它就用上面的「添加项目」把它加回来。'
+        : '已从列表移除 ' + r.removed + '（运行目录保留在磁盘上）。', 'projects', 'forget');
+      return;
+    }
+    if (act === 'purge') {
+      confirmPurge(p);
+      return;
+    }
+    if (act === 'realloc') {
+      // 请求由弹窗自己发（和 purge 同一套分工）：它要在等待期间禁用按钮、改文案。
+      confirmRealloc(p);
+      return;
+    }
+  } catch (e) {
+    // 失败一律走同一套反馈：就地留痕 + 浮窗，两处说的必须是同一句话。
+    report('opNotes', 'critical', '操作失败：' + e.message, 'ops', 'fail');
+  }
+}
+
+$('projectList').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('button[data-act]');
+  if (!btn || btn.disabled) return;
+  onAction(btn.dataset.act, btn.dataset.slug);
+});
+
+/* ---------- 详情 ---------- */
+function showDetail(p) {
+  if (!p) return report('detailNotes', 'warn', '这个项目已经不在列表里了。', 'detail', 'detail');
+  const kv = [
+    ['名称', p.name], ['标识', p.slug], ['仓库目录', p.repoDir], ['运行目录', p.runtimeDir],
+    ['面板', p.panel.running ? ('运行中，PID ' + p.panel.pid + '，:' + p.panel.port) : (p.panel.staleLock ? '锁陈旧（进程已不在）' : '未运行')],
+    ['应用', p.app.state + '，:' + p.app.port + (p.app.pid ? '，PID ' + p.app.pid : '')],
+    ['数据库', p.db.mode + ' / ' + p.db.state + (p.db.version ? ' / PG ' + p.db.version : '') + ' / ' + (p.db.dsnLabel || '—')],
+    ['源码哈希', p.config.sourceHash || '未记录'],
+    ['最近打开', fmtTime(p.lastOpenedAt)],
+  ];
+  $('detailBody').innerHTML = kv.map(([k, v]) => row(k, '<span class="mono">' + esc(v) + '</span>')).join('')
+    + '<div class="muted" style="margin-top:10px;font-size:12px">应用日志末尾：</div>'
+    + '<pre class="log" style="margin-top:6px">' + esc((p.app.logTail || []).join('\n') || '（无）') + '</pre>';
+  setNotes($('detailNotes'), [note('info', '这些值每 2 秒刷新一次，是当前时刻的快照。')]);
+  toast('info', '已展开 ' + p.name + ' 的详情。', 'detail', 'detail');
+}
+
+/* ---------- 日志 ---------- */
+let logSlug = null;
+let logFile = 'panel';
+async function loadLogs(slug, file) {
+  logSlug = slug;
+  logFile = file || logFile;
+  const p = findProject(slug);
+  $('logLabel').textContent = (p ? p.name : slug) + ' · ' + logFile;
+  const r = await api('/api/projects/' + encodeURIComponent(slug) + '/logs?file=' + encodeURIComponent(logFile) + '&lines=300');
+  const pre = $('logView');
+  pre.textContent = '';
+  for (const l of r.lines) {
+    const span = document.createElement('span');
+    // 只有看得出是错误的那几行标红。日志本身是纯文本，一律走 textContent。
+    if (/error|ERR_|失败|异常/i.test(l.text)) span.className = 'e';
+    span.textContent = l.text + '\n';
+    pre.appendChild(span);
+  }
+  if (!r.lines.length) pre.textContent = '（这个日志还是空的）';
+  pre.scrollTop = pre.scrollHeight;
+  toast('info', '已载入 ' + (p ? p.name : slug) + ' 的 ' + logFile + ' 日志（' + r.lines.length + ' 行）。', 'logs', 'logs');
+}
+$('logRefresh').onclick = () => {
+  if (!logSlug) return report('opNotes', 'warn', '先在某个项目卡上点「日志」，再刷新。', 'logs', 'nolog');
+  loadLogs(logSlug, logFile).catch((e) => report('opNotes', 'critical', '读日志失败：' + e.message, 'logs', 'nolog'));
+};
+
+/* ---------- 添加项目 ---------- */
+$('addBtn').onclick = async () => {
+  const repoDir = $('addRepoDir').value.trim();
+  const name = $('addName').value.trim();
+  if (!repoDir) return report('addNotes', 'warn', '请先填仓库目录。', 'add', 'add');
+  $('addBtn').disabled = true;
+  try {
+    const r = await api('/api/projects', { method: 'POST', body: { repoDir, name: name || null } });
+    report('addNotes', 'good', '已登记 ' + r.project.name + '，端口：面板 ' + r.project.ports.panel
+      + '、应用 ' + r.project.ports.app + '、数据库 ' + r.project.ports.pg + '。运行目录：' + r.project.runtimeDir, 'add', 'add');
+    $('addRepoDir').value = '';
+    $('addName').value = '';
+  } catch (e) {
+    report('addNotes', 'critical', '添加失败：' + e.message, 'add', 'add');
+  } finally {
+    $('addBtn').disabled = false;
+  }
+};
+$('addRepoDir').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('addBtn').click(); });
+
+/* ---------- 清盘二次确认 ---------- */
+const PURGE_PHRASE = '删除项目';
+/**
+ * 收编的旧部署要说清两件**相反**的事：它的文件会被删（跟别的项目一样），
+ * 而数据根本身不会被删（跟别的项目不一样）。
+ * 只提前一句，用户会以为中枢要跟着一起没；只提后一句，他会以为文件还都留着。
+ */
+const LEGACY_PURGE_NOTE = (p) =>
+  '<div class="sub">这会删掉收编进来的旧部署 <b>' + esc(p.name) + '</b> 在数据根里占的那些东西：'
+  + '<br><span class="mono">' + esc(p.runtimeDir) + '</span>'
+  + '<br><br>包括 <span class="mono">src\\</span>（源码副本、依赖与构建产物）、'
+  + '<span class="mono">pgdata\\</span>（<b>数据库数据目录</b>）、<span class="mono">pgsql\\</span>、'
+  + '<span class="mono">node\\</span>、<span class="mono">tmp\\</span>，'
+  + '以及它自己的 <span class="mono">config\\panel.json</span>、'
+  + '<span class="mono">run\\</span> 下的状态文件与它自己的日志。'
+  + '<br><br><b>数据根本身不会被删。</b>中枢自己的东西一律不动：'
+  + '<span class="mono">projects.json</span>、<span class="mono">config\\hub.secret</span>、'
+  + '<span class="mono">run\\hub.lock</span>、<span class="mono">logs\\hub.log</span>、'
+  + '<span class="mono">engine\\</span>，以及其他项目的 <span class="mono">projects\\&lt;名字&gt;\\</span>。'
+  + '<br>删掉之后它不会再被自动收编；想让它回来，用上面的「添加项目」把它加回来。'
+  + '<br>仓库 <span class="mono">' + esc(p.repoDir) + '</span> 本身<b>不会被改动</b>。</div>';
+
+function confirmPurge(p) {
+  if (!p) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.innerHTML = '<div class="modal"><h2>'
+    + (p.legacy ? '删除收编的旧部署并清空它的文件' : '删除项目并清空运行目录') + '</h2>'
+    + (p.legacy
+      ? LEGACY_PURGE_NOTE(p)
+      : '<div class="sub">这会删掉 <b>' + esc(p.name) + '</b> 的运行目录：<br><span class="mono">' + esc(p.runtimeDir) + '</span>'
+        + '<br><br>里面有它的源码副本、依赖、<b>数据库数据目录</b>与全部日志。'
+        + '<br>仓库 <span class="mono">' + esc(p.repoDir) + '</span> 本身<b>不会被改动</b>。</div>')
+    + '<div class="field"><span class="k">原样输入「' + PURGE_PHRASE + '」四个字以确认：</span>'
+    + '<input type="text" class="phrase" autocomplete="off"></div>'
+    + '<div class="foot"><button class="sm" data-x="cancel">取消</button>'
+    + '<button class="sm danger" data-x="ok">确认删除</button></div></div>';
+  document.body.appendChild(overlay);
+
+  const input = overlay.querySelector('.phrase');
+  input.focus();
+  const close = () => overlay.remove();
+  overlay.querySelector('[data-x=cancel]').onclick = close;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  overlay.querySelector('[data-x=ok]').onclick = async () => {
+    const btn = overlay.querySelector('[data-x=ok]');
+    btn.disabled = true;
+    try {
+      const r = await api('/api/projects/' + encodeURIComponent(p.slug) + '?purge=1', {
+        method: 'DELETE',
+        body: { confirmText: input.value.trim() },
+      });
+      close();
+      // 说实话：整目录删掉、与「按名字删了 N 项但数据根还在」，用户该看到的不是同一句话。
+      if (r.purge && r.purge.mode === 'scoped') {
+        report('opNotes', 'good',
+          '已删除收编的旧部署 ' + p.name + '（清掉 ' + r.purge.removed.length + ' 项），数据根与中枢自身文件未动。仓库本身未受影响。',
+          'projects', 'purge');
+      } else {
+        report('opNotes', 'good', '已删除 ' + p.name + ' 及其运行目录。仓库本身未受影响。', 'projects', 'purge');
+      }
+    } catch (e) {
+      btn.disabled = false;
+      input.classList.add('bad');
+      report('opNotes', 'critical', '删除失败：' + e.message, 'projects', 'purge');
+    }
+  };
+}
+
+/* ---------- 重新分配端口 ---------- */
+const PORT_NAMES = { panel: '面板', app: '应用', pg: '数据库' };
+
+/**
+ * 中枢先把候选端口探一遍、填进三个**可编辑**的输入框——这就是「推荐一组空闲端口」
+ * 的含义，但最终由用户说了算。服务端会再校验一遍：必须是 1–65535 的整数、三者互不
+ * 相同、不撞中枢、不撞别的项目的预约、此刻空闲。
+ *
+ * 这个弹窗**没有确认短语**，与清盘 / 重置数据库那两件事的性质不同：那两个会真的丢
+ * 东西，这个只改**地址**——pgdata 与密码一个字节都不动，而且提交前失败时磁盘零改动。
+ * 弹窗本身（列出要停哪些服务、会改哪些派生数据）就是那次确认。
+ */
+async function confirmRealloc(p) {
+  if (!p) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.innerHTML = '<div class="modal"><h2>重新分配端口</h2>'
+    + '<div class="sub">正在为 <b>' + esc(p.name) + '</b> 探一组空闲端口…</div></div>';
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+  let r;
+  try {
+    r = await api('/api/projects/' + encodeURIComponent(p.slug) + '/ports');
+  } catch (e) {
+    close();
+    return report('opNotes', 'critical', '取端口建议失败：' + e.message, 'ops', 'fail');
+  }
+  if (!document.body.contains(overlay)) return; // 等待期间被点遮罩关掉了
+
+  const field = (key) => {
+    const external = !r.portable && key === 'pg';
+    return '<label>' + PORT_NAMES[key] + '端口'
+      + '<input type="text" inputmode="numeric" data-port="' + key + '" value="' + esc(r.suggested[key]) + '"'
+      + (external ? ' disabled' : '') + '>'
+      + '<span class="was">当前 ' + esc(r.current[key]) + (external ? '（外部库，不由中枢分配）' : '') + '</span>'
+      + '</label>';
+  };
+  const running = [
+    p.app.state === 'running' || p.app.state === 'unhealthy' ? '应用（:' + p.app.port + '）' : null,
+    p.db.state === 'running' ? '数据库（:' + p.db.port + '）' : null,
+    p.panel.running ? '控制面板（:' + p.panel.port + '）' : null,
+  ].filter(Boolean);
+
+  overlay.innerHTML = '<div class="modal"><h2>重新分配端口</h2>'
+    + '<div class="sub">为 <b>' + esc(p.name) + '</b> 换一组端口。'
+    + (running.length
+      ? '会先停掉 ' + running.join('、') + '，改完再按原先的状态拉回来——所以这段时间服务是断的。'
+      : '这些服务现在都没在跑，改完即可，不会有中断。') + '</div>'
+    + '<div class="ports">' + ['panel', 'app', 'pg'].map(field).join('') + '</div>'
+    + '<div class="sub" style="margin-top:14px">'
+    + '跟着一起改对的（自动，不用你操作）：配置里的 <span class="mono">databaseUrl</span>、源码目录 '
+    + '<span class="mono">.env</span> 里的 <span class="mono">DATABASE_URL</span> 与 '
+    + '<span class="mono">AGILECAMPUS_URL</span>。<b>数据库里的数据不会被改动。</b>'
+    + '<br>应用与面板的访问地址会变；该项目的控制面板窗口会被关掉。'
+    + '<br>通常 10–20 秒，数据库上次是被强杀的话可能要几分钟。期间请不要关掉这个页面。</div>'
+    + '<div class="foot"><button class="sm" data-x="cancel">取消</button>'
+    + '<button class="sm primary" data-x="ok">开始重新分配</button></div></div>';
+
+  const cancelBtn = overlay.querySelector('[data-x=cancel]');
+  const okBtn = overlay.querySelector('[data-x=ok]');
+  cancelBtn.onclick = close;
+
+  okBtn.onclick = async () => {
+    const ports = {};
+    for (const el of overlay.querySelectorAll('input[data-port]')) {
+      ports[el.dataset.port] = Number(String(el.value).trim());
+      el.classList.remove('bad');
+    }
+    okBtn.disabled = true;
+    okBtn.textContent = '正在重新分配…（不要关页面）';
+    cancelBtn.disabled = true;
+    try {
+      const res = await api('/api/projects/' + encodeURIComponent(p.slug) + '/ports', {
+        method: 'POST',
+        body: { confirmDowntime: true, ports },
+      });
+      close();
+      const moved = ['panel', 'app', 'pg']
+        .filter((k) => res.before[k] !== res.after[k])
+        .map((k) => PORT_NAMES[k] + ' ' + res.before[k] + ' → ' + res.after[k]);
+      // 失败分两种：提交前（磁盘零改动，服务可能已经停了）与提交后（端口组已经改好，
+      // 只是某个服务没起来）。两种情况服务端都如实写在 warnings 里，这里原样转述。
+      const tail = res.warnings.length ? '　告警：' + res.warnings.join('；') : '';
+      report('opNotes', res.warnings.length ? 'warn' : 'good',
+        '端口已改：' + moved.join('，') + '（用时 ' + Math.round(res.durationMs / 1000) + ' 秒）。'
+        + (res.panelUrl ? '控制面板已重新拉起：' + res.panelUrl + '，原来那个标签页已经失效。' : '')
+        + tail, 'ops', 'realloc');
+    } catch (e) {
+      okBtn.disabled = false;
+      okBtn.textContent = '开始重新分配';
+      cancelBtn.disabled = false;
+      report('opNotes', 'critical', '重新分配失败：' + e.message, 'ops', 'fail');
+    }
+  };
+}
+
+/* ------------------------------ 实时流 ------------------------------ */
+let es = null;
+function connect() {
+  es = new EventSource('/api/projects/stream');
+  es.addEventListener('state', (ev) => {
+    try {
+      render(JSON.parse(ev.data));
+    } catch (e) {
+      // 宿主必须是 *Notes 结尾的提示条容器，否则 setNotes 会写进一块不该动的区域。
+      report('listNotes', 'critical', '解析中枢状态失败：' + e.message, 'projects', 'stream');
+    }
+  });
+  es.onerror = () => {
+    $('hubPill').className = 'pill s-critical';
+    $('hubPillText').textContent = '与中枢的连接断了，正在重连…';
+    // EventSource 自带重连，这里只是把状态说清楚，不自己再起一个。
+  };
+}
+connect();
+</script>
+</body>
+</html>

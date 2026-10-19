@@ -1,0 +1,17 @@
+# 依赖（只在打包时用，运行时不读）
+node_modules/
+
+# 打包产物：可执行文件很大，且能从源码重建
+dist/
+
+# 本地运行产生的日志与临时文件
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# 本机配置与密钥（若有人误放到仓库根目录，不要提交）
+.env
+.env.*
+!.env.example
+config/
