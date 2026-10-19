@@ -1,53 +1,141 @@
-# ac-launcher — AgileCampus 本地部署启动器
+# ac-launcher — AgileCampus 本地部署启动器（中文版）
 
-在仓库外运行的轻量部署控制台，用于管理和监视多个 AgileCampus 检出。运行时对源仓库只读，所有构建/运行数据写入运行目录（默认 %LOCALAPPDATA%\AgileCampus）。
+ac-launcher 是一个轻量的、本地运行的「部署中枢 / 启动器」，用于管理与监视多个 AgileCampus 源代码仓库的本地运行实例。它有两种主要运行形态：便携单文件可执行程序（Windows 下双击即可），以及面向开发者的 folder 模式（在源码外运行，读取仓库但不改写源）。
 
-主要特性
+---
+
+## 主要特性
 
 - 两种运行形态：
-  - folder 模式（开发）：`start.cmd` / `node main.mjs`（需 Node ≥20，start.cmd 会在缺失时尝试下载便携 Node）
-  - 单文件模式（便携）：`dist\\ac-launcher.exe`（内嵌 Node，双击即可）
-- 仓库只读，构建与数据库都在运行目录内执行
-- 停止面板不等于停止已启动的应用或数据库（面板主要为控制面）
-- 面板仅依赖 Node 内置模块，可在 `npm ci` 之前运行，用于首次部署引导
+  - folder（开发）模式：通过 `start.cmd` 或 `node main.mjs` 启动，适合调试与本地开发使用。
+  - 单文件（便携）模式：编译为单个可执行文件（例如 `dist\\ac-launcher.exe`），可直接分发并运行。
+- 启动器对源仓库保持只读；构建、数据库与运行数据保存在运行目录下，不污染源代码。
+- 面板实现依赖 Node 内置模块，旨在能在执行 `npm ci` 之前就能运行以完成首次部署引导。
+- 提供一系列验证脚本（verify-*.mjs）用于端到端检查：端口分配、引擎清理、旧部署迁移、退出流程回归等。
 
-快速开始
+---
 
-- 便携版（Windows）：双击 `dist\\ac-launcher.exe`。
-- 开发 / 源码：在仓库外任意目录运行 `start.cmd` 或 `node main.mjs`。
+## 快速开始
 
-常用命令
+1. 便携版（Windows）
+   - 双击 `dist\\ac-launcher.exe`（若已存在），或把需要打开的仓库目录拖到 exe 上。
+2. 开发 / 源码运行（推荐用于修改或调试）
+   - 在仓库外任意目录运行（仓库目录作为参数或由 UI 注册）：
+     - Windows：双击或运行 `start.cmd`
+     - 直接用 Node：`node main.mjs` （需要 Node ≥20）
 
+---
+
+## 要求
+
+- Node.js：建议 Node 20 或更高（仅在 folder 开发模式 / 打包时需要；便携 exe 内嵌 Node）
+- Windows 优先（提供 start.cmd / dist 可执行），在类 Unix 系统上可用 Node 运行源码但部分便携打包流程/脚本以 Windows 为主
+
+---
+
+## 常用命令示例
+
+命令行启动示例：
 ```
-ac-launcher.exe                      # 打开中枢（管理登记的项目）
-ac-launcher.exe <仓库目录>           # 打开该仓库的面板（或将文件夹拖入 exe）
+ac-launcher.exe                      # 打开中枢（显示已注册的项目）
+ac-launcher.exe <仓库目录>           # 打开指定仓库的面板（或拖入仓库文件夹）
 ac-launcher.exe --repo <路径>        # 显式指定仓库目录
 ```
 
-常用选项
-
+常用选项：
 - `--repo <路径>`：项目仓库目录（只读）
-- `--runtime-dir <路径>`：运行目录，默认 `%LOCALAPPDATA%\\AgileCampus`
-- `--node <路径>`：指定用于构建/启动的 Node
-- `--port <n>`：中枢端口，默认 8788（被占用时顺延）
+- `--runtime-dir <路径>`：运行目录（默认：%LOCALAPPDATA%\\AgileCampus）
+- `--node <路径>`：指定用于构建/启��的 Node 可执行文件
+- `--port <n>`：中枢端口，默认 8788（若被占用会顺延）
 - `--no-open`：不自动打开浏览器
-- `--selftest`：打印解析结果后退出，用于排查
+- `--selftest`：解析并打印配置后退出（用于排查）
 
-运行目录（默认）
+---
 
-%LOCALAPPDATA%\\AgileCampus\\
-- projects.json            注册表
-- config\\hub.secret     监督令牌
-- engine\\<hash>\\      exe 释放的源码副本（按内容哈希）
-- projects\\<slug>\\    每个项目的运行目录（config、run、pgdata、logs 等）
+## 运行目录结构（默认）
 
-构建（生成 exe）
+默认运行目录：%LOCALAPPDATA%\\AgileCampus\\
+- projects.json            — 注册表（已登记的项目元数据）
+- config\\hub.secret        — 监督令牌与密钥
+- engine\\<hash>\\           — exe 释放的源码副本（按内容哈希）
+- projects\\<slug>\\         — 每个项目的运行目录（包含 config、run、pgdata、logs 等）
 
+运行时对源仓库保持只读，所有写入（数据库、构建缓存、日志等）都写到运行目录中，便于卸载与迁移。
+
+---
+
+## 构建（生成单文件 exe）
+
+仓库中包含用于将 Node 与应用打包为单文件 exe 的流程，主要用于生成便携版：
+
+示例（本地构建）：
 ```bat
 npm i -D postject
-node build\\build-sea.mjs
+npm run build
+# 或直接：node build/build-sea.mjs
 ```
 
-更多信息
+说明：
+- 打包流程使用 `postject`（devDependency），负责将编译好的 SEA blob 注入 node.exe。注意：这些依赖仅在打包时使用；面板运行本身不依赖额外 npm 包。
+- 生成产物通常放在 `dist\\` 下（示例：`dist\\ac-launcher.exe`）。
 
-仓库内保留了详细设计、已知限制与大量验证脚本（verify-*.mjs），用于端到端检查、端口分配、engine 清理、旧部署迁移与退出流程的回归测试。欢迎提交 issue / PR。
+---
+
+## 验证与自检脚本
+
+仓库内留有多份 verify 脚本，用于在不同阶段执行自动检测与回归测试，包括：
+- verify-preflight.mjs    — 启动前检查（端口、环境等）
+- verify-ports.mjs        — 端口分配与冲突检测
+- verify-realloc.mjs      — 资源重新分配与清理策略
+- verify-shutdown.mjs     — 退出流程验证
+- verify-hub-render.mjs   — 中枢渲染/界面检查
+- verify-panelstate.mjs   — 面板状态一致性检查
+- verify-legacypurge.mjs  — 旧部署与数据迁移回归测试
+- verify-repo.mjs, verify-ui.mjs 等
+
+可通过 npm 脚本运行部分校验：
+```bash
+npm run selftest
+npm run verify:repo
+npm run verify:ui
+```
+
+---
+
+## 开发者说明
+
+- 入口文件：`main.mjs`（启动逻辑）；`hub.mjs`（中枢逻辑）；`panel.mjs`（面板渲染/交互）
+- Windows 启动脚本：`start.cmd`
+- 打包构建脚本位于 `build\\`（例如 `build/build-sea.mjs`）
+- 面板设计目标是“零 npm 运行时依赖”，以便在尚未执行 `npm ci` 的干净环境中也能运行并引导安装。
+
+调试建议：
+- 使用 `node main.mjs --selftest` 查看解析与配置输出
+- 检查 `%LOCALAPPDATA%\\AgileCampus\\projects.json` 与运行目录中的日志（logs）获取问题线索
+
+---
+
+## 常见问题（FAQ）
+
+Q：启动时报端口被占用怎么办？
+A：Launcher 会尝试顺延端口。若你需要固定端口，请使用 `--port <n>` 并确保防火墙允许。
+
+Q：面板会修改我的源码仓库吗？
+A：不会。ac-launcher 对源仓库只读，所有构建/数据库/日志都写在运行目录里。
+
+Q：如何手动清理旧 engine / 部署？
+A：请参考运行目录下的 `engine\\<hash>` 子目录，或使用 verify-legacypurge 脚本进行受控清理（注意备份重要数据）。
+
+---
+
+## 贡献 & 反馈
+
+欢迎通过 Issues 提交 bug 报告或功能请求。若要贡献代码，请按仓库常规流程 fork → 新分支 → 发起 PR。若需要我代为创建 README 提交，请在下方选择提交方式。
+
+---
+
+## 许可
+
+仓库当前未在 package.json 中声明许可证（license 字段为空）。如需发布或共享，请考虑添加适当的许可证文件（例如 MIT、Apache-2.0 等）。
+
+---
