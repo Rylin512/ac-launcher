@@ -892,7 +892,13 @@ async function route(req, res, u) {
         }
         case 'open': {
           const target = b.target === 'login' ? '/login' : '/';
-          const url = `http://localhost:${cfg.appPort}${target}`;
+          // 用**点按钮这一刻**的局域网 IP，而不是 localhost。这不只是为了好看：
+          // 飞书 OAuth 的 state cookie 绑在发起页的 host 上，从 localhost 发起却按
+          // AGILECAMPUS_URL 回到局域网 IP 时，两个 host 不共享 cookie，用户只会看到
+          // 「绑定校验失败」。lanIp() 不缓存，走动网路由实时取；拔网线/只有回环时
+          // 退回 localhost，至少本机仍然可用。
+          const net = await lanIp();
+          const url = `http://${net?.ip || 'localhost'}:${cfg.appPort}${target}`;
           openBrowser(url);
           return json(res, 200, { ok: true, url });
         }
