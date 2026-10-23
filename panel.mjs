@@ -237,9 +237,20 @@ async function collectState() {
 
   const env = envToObject(readEnvText(P));
   const tmplEnv = templatePlaceholders(P);
+  const elevated = await isElevated();
   const warnings = [];
+  if (cfg.dbMode === 'portable' && elevated) {
+    warnings.push({
+      level: 'fail',
+      code: 'ELEVATED',
+      text: '启动器正以管理员身份运行。PostgreSQL 拒绝以管理员身份启动，部署/重启数据库一定会失败；请关闭面板，改为普通用户双击启动（不要右键「以管理员身份运行」）。',
+    });
+  }
   if (/[^\x20-\x7e]/.test(P.runtime)) {
     warnings.push({ level: 'warn', code: 'NON_ASCII_PATH', text: `运行目录路径含非 ASCII 字符，PostgreSQL 在此类路径上偶发异常，建议改用 D:\\ac-runtime 这类纯 ASCII 路径。` });
+  }
+  if (/^\\\\/.test(P.runtime)) {
+    warnings.push({ level: 'warn', code: 'UNC_PATH', text: `运行目录是网络共享路径（${P.runtime}），PostgreSQL 不支持把数据目录放在网络盘上。请用 --runtime-dir 指向本地磁盘。` });
   }
   if (app.state === 'orphan') {
     warnings.push({ level: 'warn', code: 'ORPHAN', text: `端口 ${app.port} 被一个不受本面板管理的进程占用。为免误杀，面板不会自动处理它。` });
@@ -289,7 +300,7 @@ async function collectState() {
       runtimeDir: P.runtime,
       repoDir: P.repoDir,
       nodeVersion: process.version,
-      elevated: await isElevated(),
+      elevated,
     },
     app: {
       ...app,
@@ -817,6 +828,30 @@ async function route(req, res, u) {
             ensureEnvFile(false);
             j.log('out', '密码已更新，需重启应用生效。');
           });
+          return json(res, 200, { jobId: job.id });
+        }
+        case 'db-sync-schema': {
+          // 只做「把当前源码的表结构推到库里」这一件事，默认不丢数据：
+          // pushSchema 先不带 --force 跑一次，drizzle 碰到 DROP / TRUNCATE /
+          // ALTER COLUMN TYPE 这类语句会停下来，并把变更计划打进任务日志。
+          // 用户核对后带 confirmDestructive 重放，才会真正执行那些语句。
+          //
+          // 不重启应用：新增表 / 新增字段对正在跑的进程是安全的，下一次查询就能用上。
+          // 但如果源码里连代码也变了，光推表结构不够，最后一行会提醒去「重新部署」。
+          const job = startJob(
+            'db-sync-schema',
+            '修复表结构（保留数据）',
+            ['检查数据库', '同步表结构', '复验'],
+            async (j) => {
+              try {
+                return await doctor.syncSchema(P, cfg, j, deps, {
+                  confirmDestructive: Boolean(b.confirmDestructive),
+                });
+              } finally {
+                dbDoctorCache.at = 0; // 让下次 /api/state 立刻反映修复结果
+              }
+            }
+          );
           return json(res, 200, { jobId: job.id });
         }
         case 'db-doctor': {

@@ -136,28 +136,37 @@ button.sm { padding: 5px 11px; font-size: 12px; }
 /* ---------- 操作进度条（任务执行时常驻在操作栏） ---------- */
 /* 比 .note 重一档：这是「现在机器正在动，别再点按钮」的提醒，
    不是事后的解释。运行中吸顶，用户滚到日志区也还看得见百分比。 */
+/* 吸顶时这一条会盖在滚动中的正文上。底色若是半透明，下面的字会透出来，
+   两层文字叠在一起——所以颜色必须合成在不透明的 --plane 上：
+   观感与原来的淡色底一致，但滚过去的内容被完全遮住。 */
 .op-live {
   margin: 14px 0 0; padding: 11px 13px;
   border: 2px solid var(--accent); border-radius: 10px;
-  background: rgba(42,120,214,0.08);
+  background-color: var(--plane);
+  background-image: linear-gradient(rgba(42,120,214,0.08), rgba(42,120,214,0.08));
   box-shadow: 0 3px 14px rgba(42,120,214,0.12);
 }
 .op-live.is-running { position: sticky; top: 8px; z-index: 20; }
 .op-live.is-good {
   position: static; border-color: var(--good);
-  background: rgba(12,163,12,0.07); box-shadow: none;
+  background-color: var(--plane);
+  background-image: linear-gradient(rgba(12,163,12,0.07), rgba(12,163,12,0.07));
+  box-shadow: none;
 }
 /* 失败也吸顶：出错的那一刻用户很可能正滚在日志区，这条跟着走才不会错过。
    旁边有「收起」，不想看了可以关掉，不会一直占着。 */
 .op-live.is-bad {
   position: sticky; top: 8px; z-index: 20;
   border-color: var(--critical);
-  background: rgba(208,59,59,0.09);
+  background-color: var(--plane);
+  background-image: linear-gradient(rgba(208,59,59,0.09), rgba(208,59,59,0.09));
   box-shadow: 0 3px 14px rgba(208,59,59,0.18);
 }
 .op-live.is-muted {
   position: static; border-color: var(--hairline);
-  background: var(--plane); box-shadow: none;
+  background-color: var(--plane);
+  background-image: none;
+  box-shadow: none;
 }
 .op-live-row { display: flex; align-items: center; gap: 9px; font-size: 13.5px; }
 .op-live-row b { font-weight: 650; }
@@ -218,7 +227,7 @@ button.sm { padding: 5px 11px; font-size: 12px; }
 .doc-row.lv-warn { border-left: 3px solid var(--warning); }
 .doc-body { flex: 1; min-width: 0; }
 .doc-title { font-weight: 600; }
-.doc-detail { color: var(--ink-2); margin-top: 3px; line-height: 1.6; overflow-wrap: anywhere; }
+.doc-detail { color: var(--ink-2); margin-top: 3px; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-line; }
 .doc-act { flex: none; }
 .doc-row.is-destructive { border-color: var(--critical); }
 
@@ -473,6 +482,7 @@ footer { margin-top: 26px; font-size: 12px; color: var(--ink-muted); line-height
       <button id="btnSync" type="button">仅同步源码</button>
       <button id="btnHealth" type="button">体检一次</button>
       <button class="primary" id="btnDoctor" type="button">检修数据库</button>
+      <button id="btnSyncSchema" type="button" title="基于运行目录里的源码副本推表结构，只做不丢数据的变更；仓库刚更新过的话，先点「仅同步源码」">修复表结构（保留数据）</button>
       <button id="btnOpen" type="button">打开网站</button>
       <button id="btnDbStart" type="button">启动数据库</button>
       <button id="btnDbStop" type="button">停止数据库</button>
@@ -916,7 +926,7 @@ let opPending = false;
 const OP_BUTTON_IDS = [
   'btnSetup', 'btnStart', 'btnStop', 'btnRestart', 'btnRebuild', 'btnSync',
   'btnDbStart', 'btnDbStop', 'btnResetDb', 'btnStopAll',
-  'btnDoctor', 'btnDoctorRefresh', 'btnDoctorFixAll',
+  'btnDoctor', 'btnDoctorRefresh', 'btnDoctorFixAll', 'btnSyncSchema',
 ];
 
 /** serverRunning 由 render() 传入；本地没锁时以服务端为准（刷新页面也能锁住）。 */
@@ -1663,15 +1673,24 @@ async function bootstrapJob() {
       watchJob(snap.id);
     } else {
       renderJob(snap, true);
-      // 刷新前失败在「等确认丢数据变更」上：把重放所需的上下文补回来
-      if (snap.status === 'failed' && snap.errorCode === 'SCHEMA_DESTRUCTIVE' && (snap.kind === 'setup' || snap.kind === 'rebuild')) {
-        lastOp = { name: snap.kind, body: { dbMode: 'portable' }, label: snap.kind === 'setup' ? '首次部署' : '重新部署' };
+      // 刷新前失败在「等确认丢数据变更」上：把重放所需的上下文补回来。
+      // 「修复表结构」也走同一条护栏（默认只做不丢数据的变更），所以刷新后
+      // 同样要把「已核对变更计划，确认执行」的入口补出来。
+      if (snap.status === 'failed' && snap.errorCode === 'SCHEMA_DESTRUCTIVE' && DESTRUCTIVE_RETRY[snap.kind]) {
+        lastOp = DESTRUCTIVE_RETRY[snap.kind]();
         offerDestructiveRetry();
       }
     }
   } catch {}
 }
 let lastOp = null;   // 供「确认执行丢数据变更」原样重放
+
+/** 会碰到「等确认丢数据变更」的任务：失败后都能原样重放一次（带 confirmDestructive）。 */
+const DESTRUCTIVE_RETRY = {
+  setup: () => ({ name: 'setup', body: { dbMode: 'portable' }, label: '首次部署' }),
+  rebuild: () => ({ name: 'rebuild', body: { dbMode: 'portable' }, label: '重新部署' }),
+  'db-sync-schema': () => ({ name: 'db-sync-schema', body: {}, label: '修复表结构（保留数据）' }),
+};
 
 /**
  * 表结构变更里出现 DROP / TRUNCATE 这类语句时，面板会停下来等确认。
@@ -2064,6 +2083,7 @@ function bind() {
   };
   $('btnSync').onclick = () => runOp('sync', {}, '同步源码');
   $('btnHealth').onclick = runHealth;
+  $('btnSyncSchema').onclick = () => runOp('db-sync-schema', {}, '修复表结构（保留数据）');
   $('btnOpen').onclick = () => runOp('open', { target: 'app' }, '打开网站');
   $('btnDbStart').onclick = () => runOp('db-start', {}, '启动数据库');
   $('btnDbStop').onclick = () => runOp('db-stop', {}, '停止数据库');
