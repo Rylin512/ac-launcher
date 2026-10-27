@@ -35,6 +35,7 @@ import {
   loadRegistry,
   saveRegistry,
   migrateLegacy,
+  dedupeProjects,
   addProject,
   removeProject,
   findProject,
@@ -75,10 +76,6 @@ function log(...args) {
 
 const SECRET = loadHubSecret(runtimeDir);
 const registry = loadRegistry(runtimeDir);
-if (migrateLegacy(runtimeDir, registry)) {
-  saveRegistry(runtimeDir, registry);
-  log(`已把数据根里既有的单项目部署原地收编进列表（${registry.projects.length} 个项目）。`);
-}
 
 const TOKEN = randomToken(24);
 const TOKENS = tokenSet(TOKEN);
@@ -839,6 +836,20 @@ async function main() {
     openBrowser(`http://127.0.0.1:${existing.port}/`, log);
     process.exit(0);
   }
+
+  // 注册表只在「本次确实要成为中枢进程」时才动。
+  //
+  // 这一段以前在模块顶层，于是第二次启动虽然马上就会发现已有中枢并退出，却已经先
+  // 读—改—写了一遍 projects.json：在跑的那个进程刚写下的列表（包括 ignoredRepos
+  // 与端口预约）会被这份陈旧副本覆盖回去。收编旧部署还必须幂等——路径写法不同
+  // （大小写、junction、8.3 短名）不能被当成另一套部署，见 registry.mjs 的
+  // samePath / dedupeProjects。
+  const merged = dedupeProjects(registry);
+  if (merged) log(`注册表里有 ${merged} 条重复的项目条目，已合并。`);
+  if (migrateLegacy(runtimeDir, registry)) {
+    log(`已把数据根里既有的单项目部署原地收编进列表（${registry.projects.length} 个项目）。`);
+  }
+
   // 顺延范围只到 8799：新项目的预约从 8800 起，两者结构上不相交（见 registry.mjs）。
   if (!(await portFree(actualHubPort, '127.0.0.1'))) {
     const fallback = await pickFreePort(Array.from({ length: 12 }, (_, i) => actualHubPort + 1 + i));

@@ -28,6 +28,8 @@ import {
   loadRegistry,
   saveRegistry,
   migrateLegacy,
+  dedupeProjects,
+  samePath,
   addProject,
   removeProject,
   purgeProject,
@@ -189,6 +191,75 @@ async function libraryChecks() {
   ok('普通项目的运行目录整个没了（所以上面那串「还在」不是空操作撑起来的）', !fs.existsSync(o.runtimeDir));
   ok('同一个数据根里别的东西照样没动', fs.existsSync(path.join(root, 'projects.json')) && fs.existsSync(path.join(root, 'config', 'hub.secret')));
 
+  sec('重启幂等：同一条旧部署不会被再收编一次');
+  F();
+  {
+    const first = loadRegistry(root);
+    first.projects = [otherOf(root, OTHER_REPO)];
+    saveRegistry(root, first);
+    const adopted = loadRegistry(root);
+    ok('第一次启动收编（前置条件，否则下面那句 false 证明不了任何事）', migrateLegacy(root, adopted) === true);
+    // 中枢在启动末尾会 saveRegistry。照做，然后模拟下一次启动。
+    saveRegistry(root, adopted);
+    const next = loadRegistry(root);
+    ok('第二次启动不再收编（「每次启动多一条旧部署」的回归）', migrateLegacy(root, next) === false);
+    saveRegistry(root, next);
+    ok('落盘之后仍然只有一条旧部署', loadRegistry(root).projects.filter((p) => p.legacy).length === 1);
+  }
+
+  sec('同一目录的另一种写法不算第二套部署');
+  F();
+  {
+    const alias = path.join(base, 'data-alias');
+    let linked = false;
+    try {
+      fs.symlinkSync(root, alias, 'dir');
+      linked = true;
+    } catch {}
+    if (linked) {
+      const reg = loadRegistry(root);
+      reg.projects = [{ ...legacyOf(root, REPO), runtimeDir: alias }];
+      ok('符号链接 / junction 指向同一处时不再收编', migrateLegacy(root, reg) === false);
+    } else {
+      console.log('  · 跳过符号链接用例（当前环境不允许创建链接）');
+    }
+    if (process.platform === 'win32') {
+      ok('大小写不同的同一路径被认作同一处', samePath(root, root.toUpperCase()));
+    }
+  }
+
+  sec('历史上已经堆出来的重复条目：读出来就合并');
+  F();
+  {
+    // saveRegistry 会先去重，所以这里直接写一份「坏」的 projects.json 模拟旧版本留下的现场。
+    const dup = legacyOf(root, REPO);
+    const raw = {
+      version: 1,
+      hub: { port: 8788, actualPort: null },
+      projects: [dup, { ...dup }, { ...dup }, otherOf(root, OTHER_REPO)],
+    };
+    fs.writeFileSync(path.join(root, 'projects.json'), JSON.stringify(raw, null, 2));
+    const loaded = loadRegistry(root);
+    ok('文件里确实有 3 条旧部署（前置条件）', loaded.projects.filter((p) => p.legacy).length === 3);
+    ok('合并掉 2 条', dedupeProjects(loaded) === 2);
+    ok('只剩一条旧部署', loaded.projects.filter((p) => p.legacy).length === 1);
+    ok('另一个项目没被顺手删掉', loaded.projects.some((p) => p.slug === 'other-deadbeef'));
+    saveRegistry(root, loaded);
+    ok('落盘之后仍然是 1 条', loadRegistry(root).projects.filter((p) => p.legacy).length === 1);
+  }
+
+  sec('仓库已经以普通项目登记：不再多收编一条旧部署');
+  F();
+  {
+    const reg = loadRegistry(root);
+    reg.projects = [{
+      slug: 'legacy-00000000', name: 'legacy', repoDir: REPO,
+      runtimeDir: path.join(root, 'projects', 'legacy-00000000'), legacy: false,
+    }];
+    saveRegistry(root, reg);
+    ok('不再收编（同一仓库只该有一张卡片）', migrateLegacy(root, loadRegistry(root)) === false);
+  }
+
   sec('移出列表：文件一个不动，但不会再自己回来');
   F();
   {
@@ -204,7 +275,13 @@ async function libraryChecks() {
     const removed = removeProject(reg, 'legacy-00000000');
     ok('移出返回的就是那条旧部署', removed.slug === 'legacy-00000000');
     ok('记下了「别再自动收编」', isIgnoredRepo(reg, REPO));
-    ok('路径比较不区分大小写（注册表里两种写法都出现过）', isIgnoredRepo(reg, REPO.toUpperCase()));
+    // Windows 上同一个目录的大小写写法必须算同一处；POSIX 上则是两个不同的目录，
+    // 这里刻意跟着平台走，而不是无条件小写化（那会把两个真实存在的仓库并成一个）。
+    if (process.platform === 'win32') {
+      ok('路径比较不区分大小写（注册表里两种写法都出现过）', isIgnoredRepo(reg, REPO.toUpperCase()));
+    } else {
+      ok('POSIX 上大小写不同就是不同路径（不做无条件小写化）', !isIgnoredRepo(reg, REPO.toUpperCase()));
+    }
     saveRegistry(root, reg);
     // 关键：从磁盘读回来。saveRegistry 写的是**白名单**，漏掉这个键就白记。
     const back = loadRegistry(root);
@@ -364,7 +441,7 @@ async function e2e() {
 
   try {
     sec('起一个临时中枢（临时数据根、随机端口，绝不碰用户那一份）');
-    const hub = await bootHub();
+    let hub = await bootHub();
     ok('中枢起来了，且 run\\hub.lock 已落盘', fs.existsSync(path.join(root, 'run', 'hub.lock')));
 
     sec('启动时把数据根里的旧部署收编进了列表');
@@ -373,6 +450,15 @@ async function e2e() {
     ok('列表里有那条旧部署', Boolean(legacy), JSON.stringify(slugs(s1)));
     ok('它的运行目录就是数据根', legacy && path.resolve(legacy.runtimeDir) === path.resolve(root), legacy && legacy.runtimeDir);
     ok('另一个项目也在', slugs(s1).includes('other-deadbeef'));
+
+    sec('重启中枢：同一条旧部署不会再被收编出一条');
+    // 这条走的是真的启动路径（hub.mjs 的启动段），库层那条只测了 migrateLegacy 本身。
+    hub.child.kill();
+    await sleep(800);
+    hub = await bootHub();
+    const s1b = await state();
+    ok('旧部署仍然只有一条', (s1b.projects || []).filter((p) => p.legacy).length === 1, JSON.stringify(slugs(s1b)));
+    ok('文件里也只有一条', JSON.parse(fs.readFileSync(path.join(root, 'projects.json'), 'utf8')).projects.filter((p) => p.legacy).length === 1);
 
     sec('删除并清盘：短语与状态守卫');
     const del = `/api/projects/${legacy.slug}?purge=1`;
