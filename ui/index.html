@@ -349,12 +349,18 @@ a.alinkbtn:hover { border-color: var(--accent); color: var(--accent); }
 /* ---------- 任务面板 ---------- */
 .steps { display: flex; flex-wrap: wrap; gap: 6px 4px; margin-bottom: 12px; }
 .step {
+  display: inline-flex; align-items: baseline; gap: 6px;
   font-size: 12px; padding: 4px 10px; border-radius: 999px;
   border: 1px solid var(--hairline); color: var(--ink-muted); white-space: nowrap;
 }
 .step.done    { color: var(--good);     border-color: var(--good); }
 .step.running { color: var(--ink);      border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
 .step.failed  { color: var(--critical); border-color: var(--critical); }
+/* 步骤自己的百分比。等宽数字：每 250ms 变一次时宽度不跳。 */
+.step-pct { font-size: 11px; font-variant-numeric: tabular-nums; opacity: .85; }
+.step.done .step-pct    { color: var(--good); }
+.step.running .step-pct { color: var(--accent); opacity: 1; }
+.step.failed .step-pct  { color: var(--critical); }
 
 pre.log {
   margin: 0; padding: 12px 14px; border-radius: 8px;
@@ -1382,23 +1388,75 @@ document.addEventListener('keydown', (e) => {
 let opLiveSnap = null;
 let opTick = null;
 let opStartAt = null;
+// 任务卡片当前画的是哪份快照。进度条每 250ms 更新时要确认卡片画的是同一个任务，
+// 否则会拿新任务的步骤去改旧卡片的百分比。
+let jobSnap = null;
 // 用户把失败横幅收起来后，refreshJobs 每 3 秒还会拿 lastFinished 重画一遍；
 // 记住被收起的是哪个任务，避免它自己又弹回来。
 let opLiveDismissedId = null;
 
 const OP_LIVE_ICON = { running: '⏳', succeeded: '✓', failed: '✕', cancelled: '·' };
 
-function opPercent(snap) {
-  if (snap.status !== 'running') return 100;
-  const total = snap.steps ? snap.steps.length : 0;
-  if (!total) return null;
-  const done = snap.steps.filter((s) => s.status === 'done').length;
-  // 运行中最多显示 99%：100% 只能由真正的终态给出，否则最后一步跑很久时
-  // 界面会一直停在 100%，看起来像卡住了。
-  return Math.min(99, Math.round((done / total) * 100));
+const STEP_EXPECT_DEFAULT_MS = 10000;
+
+/** 步骤的典型耗时（服务端随每个 step 下发；缺失时用默认值）。 */
+function stepExpectMs(s) {
+  const n = Number(s && s.expectMs);
+  return Number.isFinite(n) && n > 0 ? n : STEP_EXPECT_DEFAULT_MS;
 }
 
-function opStepText(snap) {
+/**
+ * 单个步骤的进度（0–99）。100% 只能由步骤真正结束（status=done）给出。
+ *
+ * 命令输出里没有可靠的百分比（npm ci / next build 都不报告进度），所以按
+ * 「已用时 / 典型耗时」估算：到预计时间走 90%，之后缓慢逼近 99%。这样长尾
+ * 步骤不会停在一个数字上让人以为卡死，也不会越过 100%。
+ * 失败的步骤按结束时的时间冻结，保留它跑到哪里才断的线索。
+ */
+function stepPercent(s, now = Date.now()) {
+  if (!s) return 0;
+  if (s.status === 'done') return 100;
+  if (s.status !== 'running' && s.status !== 'failed') return 0;
+  const end = s.status === 'failed' ? (s.endedAt || now) : now;
+  const started = s.startedAt || end;
+  const frac = Math.max(0, end - started) / stepExpectMs(s);
+  const pct = frac <= 1 ? 90 * frac : 90 + 9 * (1 - Math.exp(-(frac - 1) / 2));
+  return Math.max(0, Math.min(99, Math.round(pct)));
+}
+
+/**
+ * 总进度的权重：没跑的步骤按典型耗时，跑完的步骤按**真实耗时**。
+ *
+ * 后者是为了让「跳过」的步骤几乎不占权重：重新部署时数据库那几步是瞬间
+ * 跳过的，如果按典型耗时计权，构建还没开始总进度就会显示 60% 以上。
+ */
+function stepWeight(s) {
+  if (s.status === 'done') {
+    const ms = (s.endedAt || 0) - (s.startedAt || 0);
+    return Math.max(1, ms);
+  }
+  return stepExpectMs(s);
+}
+
+/** 总进度：各步骤百分比按权重加权的平均。 */
+function opPercent(snap, now = Date.now()) {
+  if (snap.status !== 'running') return 100;
+  const steps = snap.steps || [];
+  if (!steps.length) return null;
+  let weight = 0;
+  let acc = 0;
+  for (const s of steps) {
+    const w = stepWeight(s);
+    weight += w;
+    acc += (w * stepPercent(s, now)) / 100;
+  }
+  if (!weight) return null;
+  // 运行中最多显示 99%：100% 只能由真正的终态给出，否则最后一步跑很久时
+  // 界面会一直停在 100%，看起来像卡住了。
+  return Math.max(1, Math.min(99, Math.round((acc / weight) * 100)));
+}
+
+function opStepText(snap, now = Date.now()) {
   const steps = snap.steps || [];
   if (!steps.length) return '';
   // 优先信 currentStep：失败时它指向出错那一步，而不是最后一步。
@@ -1411,18 +1469,49 @@ function opStepText(snap) {
     }
   }
   if (idx < 0 || !steps[idx]) return '';
-  return `第 ${idx + 1}/${steps.length} 步 · ${steps[idx].title}`;
+  return `第 ${idx + 1}/${steps.length} 步 · ${steps[idx].title} ${stepPercent(steps[idx], now)}%`;
 }
 
-function opMetaText(snap) {
+function opMetaText(snap, now = Date.now()) {
   const parts = [];
-  const step = opStepText(snap);
+  const step = opStepText(snap, now);
   if (step) parts.push(step);
-  const end = snap.endedAt || Date.now();
+  const end = snap.endedAt || now;
   const secs = Math.max(0, Math.round((end - snap.startedAt) / 1000));
   parts.push((snap.status === 'running' ? '已用时 ' : '用时 ') + fmtDur(secs));
   if (snap.status === 'running') parts.push('操作按钮已锁定，请等任务结束或点「取消任务」');
   return parts.join(' · ');
+}
+
+/** 把每一步自己的百分比写进任务卡片的步骤标签（不重建标签，避免闪烁）。 */
+function paintStepPercents(snap, now = Date.now()) {
+  const box = $('jobSteps');
+  if (!snap || !box || !jobSnap || jobSnap.id !== snap.id) return;
+  const steps = snap.steps || [];
+  for (const el of box.children) {
+    const i = Number(el.dataset.i);
+    const s = steps[i];
+    if (!s) continue;
+    // 步骤状态也顺手同步：SSE 的 step 事件到得比 3 秒一次的轮询早，
+    // 只改百分比会让「已完成的步骤」还挂着运行中的颜色。
+    const cls = s.status === 'pending' ? 'step' : 'step ' + s.status;
+    if (el.className !== cls) el.className = cls;
+    const pct = el.querySelector('.step-pct');
+    if (pct) pct.textContent = stepPercent(s, now) + '%';
+  }
+}
+
+/** 进度条、百分比、当前步骤与已用时——运行中每 250ms 重画一次。 */
+function paintOpLive(snap, now = Date.now()) {
+  const p = opPercent(snap, now);
+  $('opLivePct').textContent = p === null ? '—' : p + '%';
+  $('opBar').setAttribute('aria-valuenow', String(p === null ? 0 : p));
+  // 没有步骤数据时（任务刚开始、或后端给了空步骤表），让条铺满并压低透明度，
+  // 靠运行中的斜纹表达「在进行」，而不是谎报一个 0%。
+  $('opBarFill').style.width = (p === null ? 100 : p) + '%';
+  $('opBarFill').style.opacity = p === null ? '.35' : '';
+  $('opLiveMeta').textContent = opMetaText(snap, now);
+  paintStepPercents(snap, now);
 }
 
 function stopOpTicker() {
@@ -1432,10 +1521,12 @@ function stopOpTicker() {
 
 function startOpTicker() {
   if (opTick) return;
+  // 250ms 而不是 1s：百分比要跟着时间走，一秒一跳看起来像在结巴。
+  // 每次只改几个文本节点和一条宽度，开销可以忽略。
   opTick = setInterval(() => {
     if (!opLiveSnap || opLiveSnap.status !== 'running') return stopOpTicker();
-    $('opLiveMeta').textContent = opMetaText(opLiveSnap);
-  }, 1000);
+    paintOpLive(opLiveSnap);
+  }, 250);
 }
 
 function renderOpLive(snap) {
@@ -1463,15 +1554,7 @@ function renderOpLive(snap) {
     cancelled: '已取消：' + title,
   }[snap.status] || title;
 
-  const p = opPercent(snap);
-  $('opLivePct').textContent = p === null ? '—' : p + '%';
-  $('opBar').setAttribute('aria-valuenow', String(p === null ? 0 : p));
-  // 没有步骤数据时（任务刚开始、或后端给了空步骤表），让条铺满并压低透明度，
-  // 靠运行中的斜纹表达「在进行」，而不是谎报一个 0%。
-  $('opBarFill').style.width = (p === null ? 100 : p) + '%';
-  $('opBarFill').style.opacity = p === null ? '.35' : '';
-
-  $('opLiveMeta').textContent = opMetaText(snap);
+  paintOpLive(snap);
 
   const err = $('opLiveErr');
   const act = $('opLiveAct');
@@ -1538,6 +1621,7 @@ $('btnOpLiveClose').onclick = () => {
  * 而增量行本来就已经由 SSE 的 log 事件追加过了。
  */
 function renderJob(snap, rebuildLog) {
+  jobSnap = snap;
   $('jobCard').classList.remove('hidden');
   $('jobTitle').textContent = snap.title + '（' + snap.id + '）';
   $('btnCancelJob').disabled = snap.status !== 'running';
@@ -1545,8 +1629,16 @@ function renderJob(snap, rebuildLog) {
   box.textContent = '';
   snap.steps.forEach((s, i) => {
     const el = document.createElement('span');
-    el.className = 'step ' + (s.status === 'pending' ? '' : s.status);
-    el.textContent = (i + 1) + '. ' + s.title + (s.detail ? ' · ' + s.detail : '');
+    el.className = s.status === 'pending' ? 'step' : 'step ' + s.status;
+    el.dataset.i = String(i);
+    const label = document.createElement('span');
+    label.className = 'step-label';
+    label.textContent = (i + 1) + '. ' + s.title + (s.detail ? ' · ' + s.detail : '');
+    // 每一步自己的百分比：完成的 100%，没开始的 0%，正在跑的按耗时估算。
+    const pct = document.createElement('span');
+    pct.className = 'step-pct';
+    pct.textContent = stepPercent(s) + '%';
+    el.append(label, pct);
     box.appendChild(el);
   });
 
