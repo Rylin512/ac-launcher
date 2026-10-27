@@ -466,11 +466,13 @@ async function opStop(P_, cfg_, job) {
 }
 
 async function opRebuild(P_, cfg_, job, body) {
-  await dep.rebuildAll(P_, cfg_, job, deps, body);
-  cfg.builtAt = Date.now();
-  cfg.sourceHash = dep.sourceChanged(P_, cfg_).hash;
-  saveConfig(P_, cfg);
-  job.log('out', '重新部署完成。');
+  const r = await dep.rebuildAll(P_, cfg_, job, deps, body);
+  // rebuildAll 已经算过源码哈希并带回来了，这里不再 hashTree 第二遍。
+  // builtAt 只在真的编译过时更新：「跳过编译」的空跑不该让「上次构建」变新。
+  if (r?.built) cfg_.builtAt = Date.now();
+  if (r?.sourceHash) cfg_.sourceHash = r.sourceHash;
+  saveConfig(P_, cfg_);
+  job.log('out', r?.built ? '重新部署完成。' : '重新部署完成（源码未变化，已跳过编译）。');
 }
 
 async function opSetup(P_, cfg_, job, body) {
@@ -497,16 +499,18 @@ async function opSetup(P_, cfg_, job, body) {
   // 源码同步会跳过 .env 系列，所以先写也不会被覆盖。
   ensureEnvFile(true);
 
-  await dep.deployAll(P_, cfg, job, deps, {
+  const r = await dep.deployAll(P_, cfg, job, deps, {
     mirror: Boolean(body.mirror),
     forceDeps: Boolean(body.forceDeps),
+    forceBuild: Boolean(body.forceBuild),
     confirmDestructive: Boolean(body.confirmDestructive),
     allowWipePgData: Boolean(body.allowWipePgData),
     skipStart: Boolean(body.skipStart),
   });
 
-  cfg.builtAt = Date.now();
-  cfg.sourceHash = dep.sourceChanged(P_, cfg).hash;
+  // 同 opRebuild：复用部署过程算出的哈希；没编译就不动 builtAt。
+  if (r?.built) cfg.builtAt = Date.now();
+  if (r?.sourceHash) cfg.sourceHash = r.sourceHash;
   saveConfig(P_, cfg);
   job.log('out', '首次部署完成。');
 }

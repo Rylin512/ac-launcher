@@ -41,6 +41,28 @@ node verify-repo.mjs --repo <仓库> diff manifest.json
 
 删除整个项目请在中枢中使用「删除并清盘」，不要手工删目录：收编的旧部署运行目录就是数据根，手工清理容易连同中枢的注册表一起删掉。相关边界由 `verify-legacypurge.mjs` 守护。
 
+## 部署与构建
+
+### 重新部署眨眼就完成了，是不是没真正重建？
+
+这是「源码与依赖都没有变化」时的正常结果，不是空转。重新部署会先比对三件事：
+
+- 运行目录里源码树的哈希，与上次成功部署时记录的一致；
+- `npm ci` 被跳过（lockfile 没变，`node_modules` 还在）；
+- `.next/standalone` 产物仍然存在。
+
+三者同时成立时，`next build` 不会重跑——它要解决的问题（源码变了 / 依赖变了）并没有发生。面板仍会重新装配 `public/` 与 `.next/static` 并重启应用，任务日志里会明确写出「跳过重新编译」。
+
+只要改过源码，哈希就会变化，构建会正常执行。日志里每一步都带耗时（例如 `⏱ 构建前端 用时 1m12s`），可以直接看出时间花在哪里。
+
+### 怎么强制重新编译？
+
+1. 点「停止应用」——应用运行时的当前工作目录就是 `src/.next/standalone`，Windows 不允许删除活进程的工作目录；
+2. 删除该项目的运行目录里的 `src/.next`；
+3. 再点一次「重新部署」。产物不存在时，「跳过编译」的条件不成立，构建一定会执行。
+
+路径默认是 `%LOCALAPPDATA%\AgileCampus\projects\<slug>\src\.next`（非 Windows 为 `~/.agilecampus/projects/<slug>/src/.next`）。
+
 ## PostgreSQL
 
 ### 换一台电脑部署时报 initdb 失败

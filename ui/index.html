@@ -2078,7 +2078,7 @@ function bind() {
   $('btnStop').onclick = () => runOp('stop', {}, '停止应用');
   $('btnRestart').onclick = () => runOp('restart', {}, '重启应用');
   $('btnRebuild').onclick = () => {
-    if (!confirm('重新部署会同步最新源码并重建前端，完成后自动重启。数据库不受影响。继续吗？')) return;
+    if (!confirm('重新部署会同步最新源码并重建前端，完成后自动重启。源码与依赖都没有变化时会跳过编译，只重新装配并重启。数据库不受影响。继续吗？')) return;
     runOp('rebuild', {}, '重新部署');
   };
   $('btnSync').onclick = () => runOp('sync', {}, '同步源码');
