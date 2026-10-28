@@ -1,6 +1,6 @@
 {
   "name": "ac-launcher",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "AgileCampus 独立部署控制台：面板 + 多项目中枢，可打包成单个 exe",
   "license": "MIT",
