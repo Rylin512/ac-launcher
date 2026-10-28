@@ -132,7 +132,12 @@ try {
   {
     // 函数写对了但调用点没改，等于没改。projectState 里那一次是闪烁的正主，
     // openProject 的复用判据是「忙时点打开会起第二个面板」的正主。
-    const hub = fs.readFileSync(path.join(import.meta.dirname, 'hub.mjs'), 'utf8');
+    // 统一成 LF 再切函数体：Windows 上 core.autocrlf=true 检出的是 CRLF，
+    // 下面那句 `indexOf('\n}\n')` 一个都找不到，于是整份文件都算进 projectState，
+    // 顺带扫到别处的 livePanel 调用，构建门禁就永远红。
+    const hub = fs
+      .readFileSync(path.join(import.meta.dirname, 'hub.mjs'), 'utf8')
+      .replace(/\r\n/g, '\n');
     const body = (name) => {
       const i = hub.indexOf(`function ${name}(`);
       if (i === -1) return '';
